@@ -288,8 +288,8 @@
 - [x] Update PyPi package description: set in `pyproject.toml` — `description` = one-line summary (PyPI summary); `readme = "README.md"` = long description (PyPI project page body). Re-publish to PyPI for changes to appear.
 - [x] Test pinrag mcp in visual studio code locally.
 - [x] Polish README.md
-- [x] **Investigate** to add pinrag mcp to visual studio code extensions marketplace — see `notes/vscode-marketplace-investigation.md`. Summary: (A) VS Code extension wrapping `uvx --refresh pinrag` for Extensions view; (B) one-click install URL (`vscode:mcp/install?…`) for README; (C) curated list (process TBD). Recommend B first, then A.
-- [x] **Investigate** how to add pinrag mcp to cursor mcp server list — see `notes/cursor-mcp-list-investigation.md`. Summary: Submit via (1) [Cursor Directory](https://cursor.directory/plugins/new) (replaces deprecated cursor/mcp-servers), (2) cursor.store/mcp/new, (3) mcp-marketplace.io/submit. One-click install: `cursor.com/en/install-mcp?name=pinrag&config=...`
+- [x] **Investigate** to add pinrag mcp to visual studio code extensions marketplace — see `notes/vscode-marketplace-investigation.md`. Summary: (A) VS Code extension wrapping `uvx --refresh pinrag` for Extensions view; (B) protocol install URL (`vscode:mcp/install?…`) for README; (C) curated list (process TBD). Recommend B first, then A.
+- [x] **Investigate** how to add pinrag mcp to cursor mcp server list — see `notes/cursor-mcp-list-investigation.md`. Summary: Submit via (1) [Cursor Directory](https://cursor.directory/plugins/new) (replaces deprecated cursor/mcp-servers), (2) cursor.store/mcp/new, (3) mcp-marketplace.io/submit. Cursor MCP install link: `cursor.com/en/install-mcp?name=pinrag&config=...`
 - [x] Code review of the src and tests folders.
 - [x] Fix code review findings.
 - [x] Test two modes of running the stdio pinrag mcp server: one from the repo and one from PyPI (same MCP steps).

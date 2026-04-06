@@ -12,11 +12,11 @@ There are **three viable approaches** to get PinRAG MCP into VS Code’s ecosyst
 
 | Approach | Effort | Discovery | Pros | Cons |
 |----------|--------|-----------|------|------|
-| **A. VS Code Extension** | High | Extensions view (`@mcp pinrag`) | One-click install, auto-updates, discoverable | Requires TypeScript extension + Python runtime handling |
-| **B. One-Click Install URL** | Low | README / website link | No extension build, works today | Not in Extensions view; user must click link |
+| **A. VS Code Extension** | High | Extensions view (`@mcp pinrag`) | Marketplace install, auto-updates, discoverable | Requires TypeScript extension + Python runtime handling |
+| **B. Protocol install URL** | Low | README / website link | No extension build, works today | Not in Extensions view; user must open the link |
 | **C. MCP Server Gallery (curated)** | Unknown | Possibly `code.visualstudio.com/mcp` | Official listing | Process unclear; may require Microsoft approval |
 
-**Recommendation:** Start with **Approach B** (one-click install URL) for immediate value. Pursue **Approach A** if you want marketplace presence and discoverability.
+**Recommendation:** Start with **Approach B** (protocol install URL) for immediate value. Pursue **Approach A** if you want marketplace presence and discoverability.
 
 ---
 
@@ -54,7 +54,7 @@ Users can add MCP servers by editing `mcp.json` (user profile or `.vscode/mcp.js
 
 This works today but requires users to install `pinrag` (pipx/uv) and edit config manually.
 
-### 1.3 One-Click Install URL
+### 1.3 Protocol install URL (`vscode:mcp/install`)
 
 VS Code supports a URL handler for installing MCP servers:
 
@@ -157,7 +157,7 @@ pinrag-vscode/
 
 ---
 
-## 3. Approach B: One-Click Install URL (No Extension)
+## 3. Approach B: Protocol install URL (no extension)
 
 ### 3.1 How It Works
 
@@ -186,7 +186,7 @@ For sensitive data, use `inputs` in `mcp.json`. The install URL can reference `$
 
 ### 3.4 Implementation
 
-1. Add a section to the README: "One-Click Install for VS Code"
+1. Add a section to the README: "Install in VS Code (protocol link)"
 2. Provide a link, e.g. `[Install PinRAG MCP in VS Code](vscode:mcp/install?...)`
 3. Optionally host a small HTML page that generates the URL (e.g. for different `command` options: `uvx` vs `pinrag`)
 
@@ -229,14 +229,14 @@ VS Code has a curated MCP page: [code.visualstudio.com/mcp](https://code.visuals
 
 ### Phase 1: Quick Win (1–2 hours)
 
-1. **Create one-click install URL** for PinRAG.
-2. **Document in README** under "VS Code" or "One-Click Install".
+1. **Create a protocol install URL** for PinRAG.
+2. **Document in README** under "VS Code" or "Install (protocol link)".
 3. **Test** in VS Code (and VS Code Insiders if needed).
 
 Example README addition:
 
 ```markdown
-### One-Click Install (VS Code)
+### Install in VS Code (protocol link)
 
 Click to add PinRAG to VS Code's MCP configuration: [Install PinRAG MCP](vscode:mcp/install?%7B%22name%22%3A%22pinrag%22%2C%22command%22%3A%22uvx%22%2C%22args%22%3A%5B%22--refresh%22%2C%22pinrag%22%5D%7D)
 

@@ -146,7 +146,7 @@ uv sync   # or pip install -e .
 
 ## 7. Cursor / MCP Marketplace (if available)
 
-**What:** If Cursor (or another MCP client) adds a marketplace, users could add PinRAG with one click.
+**What:** If Cursor (or another MCP client) adds a marketplace, users could add PinRAG from the gallery without hand-editing config.
 
 **Status:** As of early 2025, no public Cursor MCP marketplace is widely documented. This could change in the future.
 

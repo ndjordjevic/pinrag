@@ -9,10 +9,10 @@
 
 ## Executive Summary
 
-Cursor does **not** have a single built-in MCP marketplace like VS Code's Extensions view. Discovery happens through **Cursor Directory** ([cursor.directory](https://cursor.directory)), **third-party directories**, and README one-click links. The old GitHub list **[cursor/mcp-servers](https://github.com/cursor/mcp-servers)** is **deprecated** (README redirects to Cursor Directory).
+Cursor does **not** have a single built-in MCP marketplace like VS Code's Extensions view. Discovery happens through **Cursor Directory** ([cursor.directory](https://cursor.directory)), **third-party directories**, and README install links. The old GitHub list **[cursor/mcp-servers](https://github.com/cursor/mcp-servers)** is **deprecated** (README redirects to Cursor Directory).
 
-| Platform | Effort | Process | One-Click Install |
-|----------|--------|---------|-------------------|
+| Platform | Effort | Process | Listing / protocol install |
+|----------|--------|---------|---------------------------|
 | **Cursor Directory** (official) | Low | [Submit a Plugin](https://cursor.directory/plugins/new) — Manual + **MCP Server** component (or Auto if repo has Open Plugins layout) | Yes — **Add to Cursor** on listing; also `cursor.com/en/install-mcp` |
 | **cursor.store** | Low | Web form at cursor.store/mcp/new | Yes |
 | **mcp-marketplace.io** | Low | Sign up, submit at /submit | Yes |
@@ -70,7 +70,7 @@ Cursor does **not** have a single built-in MCP marketplace like VS Code's Extens
 
 **Recommendation:** Use **Option B (uvx)** as primary — fewer setup steps. Use **`uvx --refresh pinrag`** (`"command": "uvx"`, `"args": ["--refresh", "pinrag"]`) so each MCP launch resolves the latest PyPI build (slower cold start than omitting `--refresh`). Document that users need [uv](https://docs.astral.sh/uv/) installed. PinRAG reads only the process environment (MCP `env` in `mcp.json` or exported shell vars); there is no built-in `.env` loader.
 
-### 1.4 One-Click install URL format
+### 1.4 Cursor MCP install URL format
 
 Cursor uses: `https://cursor.com/en/install-mcp?name={name}&config={base64}`
 
@@ -141,7 +141,7 @@ PinRAG fits: **AI / ML Helpers**, **Data & APIs**, or **Developer Tools**.
 
 - **URL:** [mcp-marketplace.io](https://mcp-marketplace.io/)
 - **Submit:** [Submit Your Tool](https://mcp-marketplace.io/submit) (requires sign-in: GitHub or email)
-- **Features:** Security scanning, one-click install, 2400+ tools
+- **Features:** Security scanning, in-directory install, 2400+ tools
 - **Categories:** Developer Tools, Data & Analytics, Productivity, Content & Media, etc.
 
 ### 3.2 Submission
@@ -173,7 +173,7 @@ PinRAG fits: **AI / ML Helpers**, **Data & APIs**, or **Developer Tools**.
 
 ## 5. Cursor Install URL (Direct Use)
 
-Even without being listed, you can provide a one-click install link in the PinRAG README:
+Even without being listed, you can provide a Cursor MCP install link in the PinRAG README:
 
 ```
 https://cursor.com/en/install-mcp?name=pinrag&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyItLXJlZnJlc2giLCJwaW5yYWciXSwiZW52Ijp7fX0%3D
@@ -202,7 +202,7 @@ For enterprise/MDM use, Cursor exposes [vscode.cursor.mcp.registerServer](https:
 
 1. **Create PinRAG icon** — Square SVG (e.g. [`docs/pinrag-icon.svg`](../docs/pinrag-icon.svg))
 2. **Submit to Cursor Directory** via [Submit a Plugin](https://cursor.directory/plugins/new) — Manual + MCP Server component, uvx config, attach SVG (**done** Mar 2026, pending approval)
-3. **Add one-click install to README** — Link to `cursor.com/en/install-mcp?name=pinrag&config=...` in Cursor section (already in README)
+3. **Add Cursor install link to README** — Link to `cursor.com/en/install-mcp?name=pinrag&config=...` in Cursor section (already in README)
 
 ### Phase 2: Other directories (30 min each)
 
