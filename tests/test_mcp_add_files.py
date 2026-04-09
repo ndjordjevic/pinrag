@@ -23,7 +23,7 @@ def test_add_file_empty_collection_uses_default(tmp_path: Path) -> None:
     """add_file uses default collection when collection is empty."""
     pdf_file = tmp_path / "dummy.pdf"
     pdf_file.touch()
-    with patch("pinrag.mcp.tools.index_pdf") as mock_index:
+    with patch("pinrag.core.operations.index_pdf") as mock_index:
         mock_index.return_value = MagicMock(
             source_path=pdf_file,
             total_pages=1,
@@ -31,7 +31,7 @@ def test_add_file_empty_collection_uses_default(tmp_path: Path) -> None:
             persist_directory=tmp_path,
             collection_name="test",
         )
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+        with patch("pinrag.core.operations.get_embedding_model"):
             add_file(path=str(pdf_file), persist_dir=str(tmp_path), collection="")
     mock_index.assert_called_once()
 
@@ -59,8 +59,8 @@ def test_add_file_pdf_success(tmp_path: Path) -> None:
     fake_result.total_pages = 5
     fake_result.total_chunks = 12
 
-    with patch("pinrag.mcp.tools.index_pdf", return_value=fake_result) as mock_index:
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+    with patch("pinrag.core.operations.index_pdf", return_value=fake_result) as mock_index:
+        with patch("pinrag.core.operations.get_embedding_model"):
             result = add_file(
                 path=str(pdf_file),
                 persist_dir=str(tmp_path),
@@ -85,9 +85,9 @@ def test_add_file_plaintext_detection_and_success(tmp_path: Path) -> None:
     fake_result.document_id = "notes.txt"
 
     with patch(
-        "pinrag.mcp.tools.index_plaintext", return_value=fake_result
+        "pinrag.core.operations.index_plaintext", return_value=fake_result
     ) as mock_index:
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+        with patch("pinrag.core.operations.get_embedding_model"):
             result = add_file(
                 path=str(txt_file),
                 persist_dir=str(tmp_path),
@@ -114,9 +114,9 @@ def test_add_file_discord_txt_still_detected_as_discord(tmp_path: Path) -> None:
     fake_result.total_chunks = 5
 
     with patch(
-        "pinrag.mcp.tools.index_discord", return_value=fake_result
+        "pinrag.core.operations.index_discord", return_value=fake_result
     ) as mock_index:
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+        with patch("pinrag.core.operations.get_embedding_model"):
             result = add_file(
                 path=str(txt_file),
                 persist_dir=str(tmp_path),
@@ -137,8 +137,8 @@ def test_add_file_with_tag_passes_tag(tmp_path: Path) -> None:
     fake_result.total_pages = 5
     fake_result.total_chunks = 12
 
-    with patch("pinrag.mcp.tools.index_pdf", return_value=fake_result) as mock_index:
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+    with patch("pinrag.core.operations.index_pdf", return_value=fake_result) as mock_index:
+        with patch("pinrag.core.operations.get_embedding_model"):
             add_file(
                 path=str(pdf_file),
                 persist_dir=str(tmp_path),
@@ -162,9 +162,9 @@ def test_add_file_youtube_detection_and_success(tmp_path: Path) -> None:
     fake_result.total_chunks = 15
 
     with patch(
-        "pinrag.mcp.tools.index_youtube", return_value=fake_result
+        "pinrag.core.operations.index_youtube", return_value=fake_result
     ) as mock_index:
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+        with patch("pinrag.core.operations.get_embedding_model"):
             result = add_file(
                 path="https://youtu.be/dQw4w9WgXcQ",
                 persist_dir=str(tmp_path),
@@ -195,8 +195,8 @@ def test_add_file_local_path_prioritized_over_youtube_id(tmp_path: Path) -> None
     fake_result.total_pages = 1
     fake_result.total_chunks = 1
 
-    with patch("pinrag.mcp.tools.index_pdf", return_value=fake_result) as mock_index:
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+    with patch("pinrag.core.operations.index_pdf", return_value=fake_result) as mock_index:
+        with patch("pinrag.core.operations.get_embedding_model"):
             result = add_file(
                 path=str(pdf_file),
                 persist_dir=str(tmp_path),
@@ -210,11 +210,11 @@ def test_add_file_local_path_prioritized_over_youtube_id(tmp_path: Path) -> None
 
 def test_add_file_youtube_transcript_error_returns_failed(tmp_path: Path) -> None:
     """add_file catches transcript errors and returns them in failed."""
-    with patch("pinrag.mcp.tools.index_youtube") as mock_index:
+    with patch("pinrag.core.operations.index_youtube") as mock_index:
         mock_index.side_effect = RuntimeError(
             "No transcript found for YouTube video xyz"
         )
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+        with patch("pinrag.core.operations.get_embedding_model"):
             result = add_file(
                 path="https://youtu.be/xyz12345678",
                 persist_dir=str(tmp_path),
@@ -253,9 +253,9 @@ def test_add_file_youtube_playlist_detection_and_success(tmp_path: Path) -> None
     fake_result.failed = []
 
     with patch(
-        "pinrag.mcp.tools.index_youtube_playlist", return_value=fake_result
+        "pinrag.core.operations.index_youtube_playlist", return_value=fake_result
     ) as mock_index:
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+        with patch("pinrag.core.operations.get_embedding_model"):
             result = add_file(
                 path="https://www.youtube.com/playlist?list=PLtest",
                 persist_dir=str(tmp_path),
@@ -301,8 +301,8 @@ def test_add_files_partial_success(tmp_path: Path) -> None:
     fake_result.total_pages = 3
     fake_result.total_chunks = 7
 
-    with patch("pinrag.mcp.tools.index_pdf", return_value=fake_result):
-        with patch("pinrag.mcp.tools.get_embedding_model"):
+    with patch("pinrag.core.operations.index_pdf", return_value=fake_result):
+        with patch("pinrag.core.operations.get_embedding_model"):
             result = add_files(
                 paths=[str(good_pdf), str(bad_ext), str(tmp_path / "missing.pdf")],
                 persist_dir=str(tmp_path),
@@ -323,7 +323,7 @@ def test_add_files_partial_success(tmp_path: Path) -> None:
 
 def test_add_files_fail_summary_by_reason() -> None:
     """add_files returns fail_summary categorizing failures: blocked, disabled, missing_transcript, other."""
-    from pinrag.mcp.tools import _categorize_failures
+    from pinrag.core import categorize_failures
 
     # Unit test for categorization
     failed = [
@@ -336,7 +336,7 @@ def test_add_files_fail_summary_by_reason() -> None:
         {"path": "v4", "error": "No transcript found"},
         {"path": "v5", "error": "File not found"},
     ]
-    summary = _categorize_failures(failed)
+    summary = categorize_failures(failed)
     assert summary["blocked"] == 1
     assert summary["disabled"] == 1
     assert summary["missing_transcript"] == 2

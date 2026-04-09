@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from pinrag.indexing.youtube_indexer import YouTubeIndexResult
@@ -186,7 +187,7 @@ def test_add_files_emits_verbose_phase_events() -> None:
         events.append((message, level))
 
     fake_result = {"indexed": [{"path": "x"}], "failed": []}
-    with patch("pinrag.mcp.tools.add_file", return_value=fake_result):
+    with patch("pinrag.core.operations.add_file", return_value=fake_result):
         mcp_tools.add_files(
             paths=["https://youtu.be/demo"],
             persist_dir="/tmp",
@@ -213,13 +214,15 @@ def test_add_file_youtube_emits_verbose_vision_related_phases() -> None:
         source_url="https://www.youtube.com/watch?v=abc123xyz00",
         total_segments=12,
         total_chunks=16,
-        persist_directory=mcp_tools.Path("/tmp"),
+        persist_directory=Path("/tmp"),
         collection_name="pinrag",
         title="Demo",
     )
-    with patch("pinrag.mcp.tools._detect_source_format", return_value="youtube"):
-        with patch("pinrag.mcp.tools.get_embedding_model", return_value=MagicMock()):
-            with patch("pinrag.mcp.tools.index_youtube", return_value=fake_result):
+    with patch("pinrag.core.operations.detect_source_format", return_value="youtube"):
+        with patch(
+            "pinrag.core.operations.get_embedding_model", return_value=MagicMock()
+        ):
+            with patch("pinrag.core.operations.index_youtube", return_value=fake_result):
                 mcp_tools.add_file(
                     path="https://youtu.be/abc123xyz00",
                     persist_dir="/tmp",

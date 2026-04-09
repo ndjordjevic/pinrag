@@ -6,7 +6,7 @@ import os
 
 from pinrag import __version__ as pinrag_version
 from pinrag import config
-from pinrag.mcp.tools import list_documents
+from pinrag.core import list_documents
 
 
 def _env_set(name: str) -> bool:

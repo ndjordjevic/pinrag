@@ -30,7 +30,7 @@ def test_list_documents_returns_documents_from_store(tmp_path: Path) -> None:
         ]
     }
 
-    with patch("pinrag.mcp.tools.get_chroma_store", return_value=mock_store):
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
         result = list_documents(persist_dir=str(tmp_path), collection="test_coll")
 
     assert result["documents"] == ["a.pdf", "b.pdf"]
@@ -46,7 +46,7 @@ def test_list_documents_handles_empty_metadatas(tmp_path: Path) -> None:
     mock_store = MagicMock()
     mock_store.get.return_value = {"metadatas": []}
 
-    with patch("pinrag.mcp.tools.get_chroma_store", return_value=mock_store):
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
         result = list_documents(persist_dir=str(tmp_path), collection="test_coll")
 
     assert result["documents"] == []
@@ -66,7 +66,7 @@ def test_list_documents_tag_filter(tmp_path: Path) -> None:
         ]
     }
 
-    with patch("pinrag.mcp.tools.get_chroma_store", return_value=mock_store):
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
         result = list_documents(persist_dir=str(tmp_path), collection="c", tag="amiga")
 
     assert result["documents"] == ["a.pdf"]
@@ -99,7 +99,7 @@ def test_list_documents_includes_document_details_when_present(tmp_path: Path) -
         ]
     }
 
-    with patch("pinrag.mcp.tools.get_chroma_store", return_value=mock_store):
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
         result = list_documents(persist_dir=str(tmp_path), collection="test_coll")
 
     assert result["documents"] == ["doc.pdf"]
@@ -139,7 +139,7 @@ def test_list_documents_aggregates_bytes_across_files(tmp_path: Path) -> None:
         ]
     }
 
-    with patch("pinrag.mcp.tools.get_chroma_store", return_value=mock_store):
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
         result = list_documents(persist_dir=str(tmp_path), collection="test_coll")
 
     assert result["documents"] == ["owner/repo"]
@@ -174,7 +174,7 @@ def test_list_documents_includes_segments_for_youtube(tmp_path: Path) -> None:
         ]
     }
 
-    with patch("pinrag.mcp.tools.get_chroma_store", return_value=mock_store):
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
         result = list_documents(persist_dir=str(tmp_path), collection="test_coll")
 
     assert result["documents"] == ["dQw4w9WgXcQ"]

@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 from pinrag.config import DEFAULT_PERSIST_DIR, get_collection_name  # noqa: E402
-from pinrag.mcp.tools import add_file  # noqa: E402
+from pinrag.core import add_file  # noqa: E402
 
 
 def main() -> int:

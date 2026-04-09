@@ -24,11 +24,11 @@ def test_query_uses_config_for_persist_and_collection(tmp_path: Path) -> None:
     from pinrag.rag import RAGResult
 
     (tmp_path / "chroma_db").mkdir(parents=True, exist_ok=True)
-    with patch("pinrag.mcp.tools.get_persist_dir", return_value=str(tmp_path)):
-        with patch("pinrag.mcp.tools.get_collection_name", return_value="pinrag"):
-            with patch("pinrag.mcp.tools.get_embedding_model"):
-                with patch("pinrag.mcp.tools.get_chat_model"):
-                    with patch("pinrag.mcp.tools.run_rag") as mock_run:
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_collection_name", return_value="pinrag"):
+            with patch("pinrag.core.operations.get_embedding_model"):
+                with patch("pinrag.core.operations.get_chat_model"):
+                    with patch("pinrag.core.operations.run_rag") as mock_run:
                         mock_run.return_value = RAGResult(answer="ok", sources=[])
                         query(user_query="test")
     mock_run.assert_called_once()
@@ -37,7 +37,7 @@ def test_query_uses_config_for_persist_and_collection(tmp_path: Path) -> None:
 def test_query_missing_persist_dir_raises() -> None:
     """Query raises FileNotFoundError when persist dir does not exist."""
     with patch(
-        "pinrag.mcp.tools.get_persist_dir", return_value="/nonexistent/chroma_db"
+        "pinrag.core.operations.get_persist_dir", return_value="/nonexistent/chroma_db"
     ):
         with pytest.raises(
             FileNotFoundError, match="Persistence directory does not exist"
@@ -49,11 +49,11 @@ def test_query_chain_error_propagates(tmp_path: Path) -> None:
     """Query propagates retrieval/LLM errors from run_rag."""
     (tmp_path / "chroma_db").mkdir(parents=True, exist_ok=True)
 
-    with patch("pinrag.mcp.tools.get_persist_dir", return_value=str(tmp_path)):
-        with patch("pinrag.mcp.tools.get_embedding_model"):
-            with patch("pinrag.mcp.tools.get_chat_model"):
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_embedding_model"):
+            with patch("pinrag.core.operations.get_chat_model"):
                 with patch(
-                    "pinrag.mcp.tools.run_rag",
+                    "pinrag.core.operations.run_rag",
                     side_effect=RuntimeError("OpenAI API rate limit"),
                 ):
                     with pytest.raises(RuntimeError, match="OpenAI API rate limit"):
@@ -75,11 +75,11 @@ def test_query_success(tmp_path: Path) -> None:
         )
     )
 
-    with patch("pinrag.mcp.tools.get_persist_dir", return_value=str(tmp_path)):
-        with patch("pinrag.mcp.tools.get_collection_name", return_value="test_coll"):
-            with patch("pinrag.mcp.tools.get_embedding_model"):
-                with patch("pinrag.mcp.tools.get_chat_model"):
-                    with patch("pinrag.mcp.tools.run_rag", mock_run_rag):
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_collection_name", return_value="test_coll"):
+            with patch("pinrag.core.operations.get_embedding_model"):
+                with patch("pinrag.core.operations.get_chat_model"):
+                    with patch("pinrag.core.operations.run_rag", mock_run_rag):
                         result = query(user_query="What is the answer?")
 
     assert result["answer"] == "The answer is 42."
@@ -104,11 +104,11 @@ def test_query_sources_include_start_for_youtube(tmp_path: Path) -> None:
         )
     )
 
-    with patch("pinrag.mcp.tools.get_persist_dir", return_value=str(tmp_path)):
-        with patch("pinrag.mcp.tools.get_collection_name", return_value="test_coll"):
-            with patch("pinrag.mcp.tools.get_embedding_model"):
-                with patch("pinrag.mcp.tools.get_chat_model"):
-                    with patch("pinrag.mcp.tools.run_rag", mock_run_rag):
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_collection_name", return_value="test_coll"):
+            with patch("pinrag.core.operations.get_embedding_model"):
+                with patch("pinrag.core.operations.get_chat_model"):
+                    with patch("pinrag.core.operations.run_rag", mock_run_rag):
                         result = query(user_query="What does the video say?")
 
     assert result["sources"][0] == {
@@ -150,11 +150,11 @@ def test_query_with_page_range(tmp_path: Path) -> None:
         )
     )
 
-    with patch("pinrag.mcp.tools.get_persist_dir", return_value=str(tmp_path)):
-        with patch("pinrag.mcp.tools.get_collection_name", return_value="test_coll"):
-            with patch("pinrag.mcp.tools.get_embedding_model"):
-                with patch("pinrag.mcp.tools.get_chat_model"):
-                    with patch("pinrag.mcp.tools.run_rag", mock_run_rag):
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_collection_name", return_value="test_coll"):
+            with patch("pinrag.core.operations.get_embedding_model"):
+                with patch("pinrag.core.operations.get_chat_model"):
+                    with patch("pinrag.core.operations.run_rag", mock_run_rag):
                         query(
                             user_query="OpenOCD?",
                             document_id="pico.pdf",
@@ -179,11 +179,11 @@ def test_query_with_document_type_filter(tmp_path: Path) -> None:
         )
     )
 
-    with patch("pinrag.mcp.tools.get_persist_dir", return_value=str(tmp_path)):
-        with patch("pinrag.mcp.tools.get_collection_name", return_value="test_coll"):
-            with patch("pinrag.mcp.tools.get_embedding_model"):
-                with patch("pinrag.mcp.tools.get_chat_model"):
-                    with patch("pinrag.mcp.tools.run_rag", mock_run_rag):
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_collection_name", return_value="test_coll"):
+            with patch("pinrag.core.operations.get_embedding_model"):
+                with patch("pinrag.core.operations.get_chat_model"):
+                    with patch("pinrag.core.operations.run_rag", mock_run_rag):
                         query(user_query="OTG?", document_type="youtube")
 
     mock_run_rag.assert_called_once()
@@ -202,11 +202,11 @@ def test_query_with_tag_filter(tmp_path: Path) -> None:
         )
     )
 
-    with patch("pinrag.mcp.tools.get_persist_dir", return_value=str(tmp_path)):
-        with patch("pinrag.mcp.tools.get_collection_name", return_value="test_coll"):
-            with patch("pinrag.mcp.tools.get_embedding_model"):
-                with patch("pinrag.mcp.tools.get_chat_model"):
-                    with patch("pinrag.mcp.tools.run_rag", mock_run_rag):
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_collection_name", return_value="test_coll"):
+            with patch("pinrag.core.operations.get_embedding_model"):
+                with patch("pinrag.core.operations.get_chat_model"):
+                    with patch("pinrag.core.operations.run_rag", mock_run_rag):
                         query(user_query="GPIO?", tag="PI_PICO")
 
     mock_run_rag.assert_called_once()
@@ -225,11 +225,11 @@ def test_query_with_document_id_filter(tmp_path: Path) -> None:
         )
     )
 
-    with patch("pinrag.mcp.tools.get_persist_dir", return_value=str(tmp_path)):
-        with patch("pinrag.mcp.tools.get_collection_name", return_value="test_coll"):
-            with patch("pinrag.mcp.tools.get_embedding_model"):
-                with patch("pinrag.mcp.tools.get_chat_model"):
-                    with patch("pinrag.mcp.tools.run_rag", mock_run_rag):
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_collection_name", return_value="test_coll"):
+            with patch("pinrag.core.operations.get_embedding_model"):
+                with patch("pinrag.core.operations.get_chat_model"):
+                    with patch("pinrag.core.operations.run_rag", mock_run_rag):
                         query(
                             user_query="GPIO?",
                             document_id="RP-008276-DS-1-getting-started-with-pico.pdf",

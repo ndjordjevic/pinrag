@@ -180,10 +180,10 @@ def test_remove_document_deletes_parent_chunks_when_parent_child_enabled(
     ]
     mock_docstore = MagicMock()
 
-    with patch("pinrag.mcp.tools.get_chroma_store", return_value=mock_store):
-        with patch("pinrag.mcp.tools.get_use_parent_child", return_value=True):
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
+        with patch("pinrag.core.operations.get_use_parent_child", return_value=True):
             with patch(
-                "pinrag.mcp.tools.get_parent_docstore", return_value=mock_docstore
+                "pinrag.core.operations.get_parent_docstore", return_value=mock_docstore
             ):
                 result = remove_document(
                     document_id="doc.pdf",
@@ -206,9 +206,9 @@ def test_remove_document_skips_docstore_when_parent_child_disabled(
     mock_store = MagicMock()
     mock_store.get.return_value = {"ids": ["c1"], "metadatas": [{}]}
 
-    with patch("pinrag.mcp.tools.get_chroma_store", return_value=mock_store):
-        with patch("pinrag.mcp.tools.get_use_parent_child", return_value=False):
-            with patch("pinrag.mcp.tools.get_parent_docstore") as mock_get_docstore:
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
+        with patch("pinrag.core.operations.get_use_parent_child", return_value=False):
+            with patch("pinrag.core.operations.get_parent_docstore") as mock_get_docstore:
                 remove_document(
                     document_id="doc.pdf", persist_dir=str(tmp_path), collection="c"
                 )
@@ -330,7 +330,7 @@ def test_mcp_list_resources_includes_pinrag_uris() -> None:
 
 
 def test_format_documents_list_sorts_case_insensitively() -> None:
-    """documents resource lists entries sorted by YouTube title or file id."""
+    """Documents resource lists entries sorted by YouTube title or file id."""
     fake = {
         "documents": ["zzz.pdf", "vid_b", "vid_a"],
         "total_chunks": 3,
