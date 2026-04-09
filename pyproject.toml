@@ -1,6 +1,6 @@
 [project]
 name = "pinrag"
-version = "0.9.26"
+version = "0.9.27"
 description = "A powerful RAG (Retrieval-Augmented Generation) system built with LangChain, designed as an MCP server for Cursor, VS Code, and other AI assistants"
 readme = "README.md"
 requires-python = ">=3.12"

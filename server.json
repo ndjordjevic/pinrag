@@ -7,12 +7,12 @@
     "url": "https://github.com/ndjordjevic/pinrag",
     "source": "github"
   },
-  "version": "0.9.26",
+  "version": "0.9.27",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "pinrag",
-      "version": "0.9.26",
+      "version": "0.9.27",
       "transport": {
         "type": "stdio"
       },
