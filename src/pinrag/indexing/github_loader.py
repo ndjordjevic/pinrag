@@ -399,7 +399,6 @@ def load_github_repo_as_documents(
                 "document_id": repo_id,
                 "document_type": "github",
                 "source": source_url,
-                "file_path": path,
                 "repo": repo_id,
                 "branch": use_branch,
                 "language": _infer_language(path),

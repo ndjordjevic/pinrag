@@ -60,7 +60,6 @@ def query(
     page_max: int | None = None,
     tag: str | None = None,
     document_type: str | None = None,
-    file_path: str | None = None,
     response_style: Literal["thorough", "concise"] = "thorough",
     persist_dir: str = "",
     collection: str | None = None,
@@ -79,7 +78,6 @@ def query(
         page_max: Optional end of page range (inclusive). Single page: page_min=64, page_max=64. PDF only.
         tag: Optional tag to filter retrieval (e.g. from list_documents document_details).
         document_type: Optional type to filter: "pdf", "youtube", "discord", "github", or "plaintext".
-        file_path: Optional file path within a document (GitHub: e.g. src/ria/api/atr.c). Use list_documents to see files.
         response_style: Answer style for generation ("thorough" or "concise").
         persist_dir: Chroma persistence directory (default: from PINRAG_PERSIST_DIR or chroma_db).
         collection: Chroma collection name (default: from PINRAG_COLLECTION_NAME or pinrag).
@@ -123,9 +121,6 @@ def query(
     doc_type_filter = (
         document_type.strip() if document_type and str(document_type).strip() else None
     )
-    file_path_filter = (
-        file_path.strip() if file_path and str(file_path).strip() else None
-    )
     rag_result = run_rag(
         user_query,
         llm,
@@ -138,7 +133,6 @@ def query(
         page_max=page_max,
         tag=tag_filter,
         document_type=doc_type_filter,
-        file_path=file_path_filter,
         response_style=response_style,
     )
     _emit_verbose(
@@ -154,8 +148,6 @@ def query(
         }
         if "start" in s:
             item["start"] = int(s["start"])
-        if "file_path" in s:
-            item["file_path"] = str(s["file_path"])
         sources_out.append(item)
     return {"answer": rag_result.answer, "sources": sources_out}
 
@@ -711,8 +703,7 @@ def list_documents(
 
     doc_ids: set[str] = set()
     document_details: dict[str, dict[str, Any]] = {}
-    doc_file_paths: dict[str, set[str]] = {}
-    doc_bytes_by_file: dict[str, dict[str, int]] = {}  # doc_id -> {file_path: bytes}
+    doc_bytes_by_key: dict[str, dict[str, int]] = {}  # doc_id -> {source or file_name: bytes}
     chunk_count = 0
     for meta in metadatas:
         if not isinstance(meta, dict):
@@ -729,13 +720,11 @@ def list_documents(
             or "unknown"
         )
         doc_ids.add(doc_id)
-        if meta.get("file_path"):
-            doc_file_paths.setdefault(doc_id, set()).add(str(meta["file_path"]))
-        # Aggregate doc_bytes per unique file (GitHub: many files; PDF/YouTube: single)
+        # Aggregate doc_bytes per unique source object (GitHub: one blob URL per file)
         doc_bytes = meta.get("doc_bytes")
         if doc_bytes is not None:
-            fp = meta.get("file_path") or "_"
-            doc_bytes_by_file.setdefault(doc_id, {})[fp] = doc_bytes
+            dedup = str(meta.get("source") or meta.get("file_name") or "_")
+            doc_bytes_by_key.setdefault(doc_id, {})[dedup] = int(doc_bytes)
         if doc_id not in document_details:
             details: dict[str, Any] = {}
             if meta.get("document_type") is not None:
@@ -757,15 +746,10 @@ def list_documents(
             if details:
                 document_details[doc_id] = details
 
-    # Set bytes from aggregated sum (total across all files for multi-file docs)
-    for doc_id, by_file in doc_bytes_by_file.items():
+    # Set bytes from aggregated sum (total across distinct sources for multi-file docs)
+    for doc_id, by_key in doc_bytes_by_key.items():
         if doc_id in document_details:
-            document_details[doc_id]["bytes"] = sum(by_file.values())
-
-    for doc_id, paths in doc_file_paths.items():
-        if doc_id in document_details:
-            document_details[doc_id]["file_count"] = len(paths)
-            document_details[doc_id]["files"] = sorted(paths)
+            document_details[doc_id]["bytes"] = sum(by_key.values())
 
     return {
         "documents": sorted(doc_ids),

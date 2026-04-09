@@ -47,7 +47,7 @@ Examples:
 | Tool | When |
 |------|------|
 | `add_document_tool` | Index local paths (PDF, dirs, Discord export), or pass URLs (YouTube, GitHub). **`paths`**: list of strings (use **absolute paths** for files). Optional **`tags`**: one per path. |
-| `query_tool` | Questions over the index. Optional: `tag`, `document_id`, `page_min`/`page_max`, `document_type`, `file_path`, `response_style`. |
+| `query_tool` | Questions over the index. Optional: `tag`, `document_id`, `page_min`/`page_max`, `document_type`, `response_style`. |
 | `list_documents_tool` | What’s indexed; optional `tag`. |
 | `remove_document_tool` | Remove by `document_id` from listing. |
 

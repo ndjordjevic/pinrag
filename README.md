@@ -17,9 +17,9 @@ Under the hood it is **Retrieval-Augmented Generation** built with **LangChain**
 
 - **Multi-format indexing** — PDF (.pdf), local files or directories, plain text (.txt), Discord export (.txt), YouTube (video or playlist URL, or video ID), GitHub repo (URL)
 - **Optional YouTube vision** — Off by default. When enabled, runs a vision model (OpenAI, Anthropic, or OpenRouter native video) and merges structured on-screen context with the transcript so RAG chunks carry searchable code names, labels, and diagrams—not speech alone. OpenRouter mode avoids local ffmpeg/video download; openai/anthropic use scene keyframes and require `pinrag[vision]` + **ffmpeg** (see [YouTube vision enrichment](#youtube-vision-enrichment-optional))
-- **RAG with citations** — Answers cite source context: PDF page, YouTube timestamp, document name for plain text and Discord, file path for GitHub repos
+- **RAG with citations** — Answers cite source context: PDF page, YouTube timestamp, document name for plain text and Discord, chunk index for GitHub repos
 - **Document tags** — Tag documents at index time (e.g. `AMIGA`, `PI_PICO`) for filtered search
-- **Metadata filtering** — `query_tool` supports `document_id`, `tag`, `document_type`, PDF `page_min`/`page_max`, GitHub `file_path`, and `response_style` (thorough or concise)
+- **Metadata filtering** — `query_tool` supports `document_id`, `tag`, `document_type`, PDF `page_min`/`page_max`, and `response_style` (thorough or concise)
 - **MCP tools** — `add_document_tool` (files, dirs, or URLs), `query_tool`, `list_documents_tool`, `remove_document_tool`
 - **MCP resources** — `pinrag://documents` (indexed documents) and `pinrag://server-config` (env vars and config); click in Cursor’s MCP panel to view
 - **MCP prompt** — `use_pinrag` (parameter: request) for querying, indexing, listing, or removing documents
@@ -78,12 +78,12 @@ Put API keys and any PinRAG settings in the MCP entry’s **`env` block**. The s
 | Action | Tool |
 |--------|------|
 | Index files, directories, or URLs | `add_document_tool` — required **`paths`**: list of local paths (PDFs, plain or DiscordChatExporter `.txt`, directories) or URLs (YouTube videos, playlist URLs, GitHub repos; bare YouTube video IDs allowed). Optional **`tags`** (one per path). For GitHub URLs only: **`branch`**, **`include_patterns`**, **`exclude_patterns`**. |
-| List indexed documents | `list_documents_tool` — returns **`documents`** (IDs), **`total_chunks`**, and optional **`tag`** filter. **`document_details`** may include `document_type`, tags, page / message / segment counts, titles, GitHub **`files`** / **`file_count`**, and **`upload_timestamp`** when present in metadata. |
-| Query with filters | `query_tool` — required **`query`**. Optional **`document_id`**, **`tag`**, **`document_type`**, **`page_min`** / **`page_max`** (PDF ranges), **`file_path`** (path inside a GitHub doc), **`response_style`** (`thorough` or `concise`; leave empty to use **`PINRAG_RESPONSE_STYLE`**). |
+| List indexed documents | `list_documents_tool` — returns **`documents`** (IDs), **`total_chunks`**, and optional **`tag`** filter. **`document_details`** may include `document_type`, tags, page / message / segment counts, titles, aggregated **`bytes`**, and **`upload_timestamp`** when present in metadata. |
+| Query with filters | `query_tool` — required **`query`**. Optional **`document_id`**, **`tag`**, **`document_type`**, **`page_min`** / **`page_max`** (PDF ranges), **`response_style`** (`thorough` or `concise`; leave empty to use **`PINRAG_RESPONSE_STYLE`**). |
 | Remove a document | `remove_document_tool` — required **`document_id`** (exact value from **`list_documents_tool`**). |
 | View resources (read-only) | In the MCP panel, open **Resources** and choose **`pinrag://documents`** (indexed docs) or **`pinrag://server-config`** (effective config, including **`PINRAG_VERSION`**). |
 
-Ask in chat: *"Add /path/to/amiga-book.pdf with tag AMIGA"*, *"Index https://youtu.be/xyz and ask what it says"*, or *"Index https://github.com/owner/repo and ask about the codebase"*. The AI will invoke the tools for you. Citations show page numbers for PDFs, timestamps (e.g. `t. 1:23`) for YouTube, document names for plain text and Discord exports, and file paths for GitHub.
+Ask in chat: *"Add /path/to/amiga-book.pdf with tag AMIGA"*, *"Index https://youtu.be/xyz and ask what it says"*, or *"Index https://github.com/owner/repo and ask about the codebase"*. The AI will invoke the tools for you. Citations show page numbers for PDFs, timestamps (e.g. `t. 1:23`) for YouTube, document names for plain text and Discord exports, and chunk index labels for GitHub.
 
 ### GitHub indexing
 
@@ -226,7 +226,7 @@ Vector dimension is fixed per Chroma collection and must match the **`PINRAG_EMB
 
 Tools, prompt, and read-only resources from the **`pinrag`** MCP server (`FastMCP("PinRAG")`). Tool results are JSON objects that always include **`_server_version`**; with **`PINRAG_VERBOSE_LOGGING=true`** they may include **`_verbose_log`**.
 
-`add_document_tool` returns `indexed`, `failed`, counts, `persist_directory`, `collection_name`, and **`fail_summary`** when any path failed. `query_tool` returns **`answer`** and **`sources`** (each entry: **`document_id`**, **`page`**—PDF page, often `0` for non-PDF—plus optional **`start`** in seconds for YouTube and **`file_path`** for GitHub).
+`add_document_tool` returns `indexed`, `failed`, counts, `persist_directory`, `collection_name`, and **`fail_summary`** when any path failed. `query_tool` returns **`answer`** and **`sources`** (each entry: **`document_id`**, **`page`**—PDF page, often `0` for non-PDF—plus optional **`start`** in seconds for YouTube).
 
 ### `query_tool`
 
@@ -239,10 +239,9 @@ Natural-language question; optional filters narrow retrieval (`""` / omit when u
 | `page_min`, `page_max` | Inclusive PDF page range (must pass both; one page: same value twice) |
 | `tag` | Only chunks with this tag |
 | `document_type` | `pdf`, `youtube`, `discord`, `github`, or `plaintext` |
-| `file_path` | Path inside a doc (GitHub; see `document_details` / `files` from `list_documents_tool`) |
 | `response_style` | `thorough` or `concise`. Empty (the schema default) or any other string → resolved via **`PINRAG_RESPONSE_STYLE`** (see `server.py`: only those two literals override env). |
 
-Filters can be combined. The **`sources`** list uses **`page`** for PDFs, **`start`** (seconds) for YouTube, **`file_path`** for GitHub; answers may show **t. M:SS** labels derived from **`start`**.
+Filters can be combined. The **`sources`** list uses **`page`** for PDFs and **`start`** (seconds) for YouTube; answers may show **t. M:SS** labels derived from **`start`**. GitHub citations use chunk-index-style **p. N** labels in the answer text.
 
 Example: *"What is OpenOCD? In the Pico doc, pages 16–17 only"* → `query_tool(query="What is OpenOCD?", document_id="RP-008276-DS-1-getting-started-with-pico.pdf", page_min=16, page_max=17)`.
 
@@ -260,7 +259,7 @@ Index locals (PDF, plain or Discord `.txt`, directories), YouTube (video URL, pl
 
 ### `list_documents_tool`
 
-Returns **`documents`**, **`total_chunks`**, **`persist_directory`**, **`collection_name`**, and **`document_details`** (tags, titles, counts, `upload_timestamp` when present, GitHub **`files`** / **`file_count`**, etc.). If **`tag`** is set, **`total_chunks`** counts only chunks with that tag (not the whole collection).
+Returns **`documents`**, **`total_chunks`**, **`persist_directory`**, **`collection_name`**, and **`document_details`** (tags, titles, counts, aggregated **`bytes`** when present, `upload_timestamp`, etc.). If **`tag`** is set, **`total_chunks`** counts only chunks with that tag (not the whole collection).
 
 | Parameter | Description |
 |-----------|-------------|

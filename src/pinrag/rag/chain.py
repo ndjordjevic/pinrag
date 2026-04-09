@@ -128,7 +128,6 @@ def _build_standard_retriever(
     page_max: int | None,
     tag: str | None,
     document_type: str | None,
-    file_path: str | None,
 ) -> tuple[BaseRetriever, bool, int | None]:
     """Build standard retriever and optionally wrap with multi-query.
 
@@ -144,7 +143,6 @@ def _build_standard_retriever(
         page_max=page_max,
         tag=tag,
         document_type=document_type,
-        file_path=file_path,
     )
     if use_multi_query:
         return (
@@ -175,7 +173,6 @@ def run_rag(
     page_max: int | None = None,
     tag: str | None = None,
     document_type: str | None = None,
-    file_path: str | None = None,
     response_style: Literal["thorough", "concise"] = "thorough",
 ) -> RAGResult:
     """Run a 2-step RAG pipeline: retrieve chunks, format context, prompt LLM, return answer with citations.
@@ -200,7 +197,6 @@ def run_rag(
         page_max: Optional end of page range (inclusive). Single page: page_min=64, page_max=64.
         tag: Optional tag to filter retrieval (e.g. "PI_PICO").
         document_type: Optional type to filter: "pdf", "youtube", "discord", "github", or "plaintext".
-        file_path: Optional file path within a document (GitHub: e.g. src/ria/api/atr.c). Use list_documents to see files.
         response_style: Answer style for prompt instructions ("thorough" or "concise").
 
     Returns:
@@ -231,7 +227,6 @@ def run_rag(
                     page_max=page_max,
                     tag=tag,
                     document_type=document_type,
-                    file_path=file_path,
                 )
                 if use_multi_query:
                     base_retriever = wrap_retriever_with_multiquery(
@@ -258,7 +253,6 @@ def run_rag(
                         page_max=page_max,
                         tag=tag,
                         document_type=document_type,
-                        file_path=file_path,
                     )
                 )
         else:
@@ -276,7 +270,6 @@ def run_rag(
                     page_max=page_max,
                     tag=tag,
                     document_type=document_type,
-                    file_path=file_path,
                 )
             )
     if retriever is None:

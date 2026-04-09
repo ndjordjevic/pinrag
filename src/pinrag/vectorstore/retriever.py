@@ -34,7 +34,6 @@ def create_retriever(
     page_max: int | None = None,
     tag: str | None = None,
     document_type: str | None = None,
-    file_path: str | None = None,
 ) -> BaseRetriever:
     """Create a LangChain retriever from the Chroma vector store.
 
@@ -51,7 +50,6 @@ def create_retriever(
         page_max: Optional end of page range (inclusive).
         tag: Optional tag to filter retrieval.
         document_type: Optional type to filter: "pdf", "youtube", "discord", "github", or "plaintext".
-        file_path: Optional file path within a document (GitHub: e.g. src/ria/api/atr.c). Use list_documents to see files.
 
     Returns:
         BaseRetriever (Chroma retriever with configured search_kwargs).
@@ -70,7 +68,6 @@ def create_retriever(
         page_max=page_max,
         tag=tag,
         document_type=document_type,
-        file_path=file_path,
     )
     search_kwargs: dict = {"k": k}
     if filter_dict is not None:

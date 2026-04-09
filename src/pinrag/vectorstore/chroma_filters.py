@@ -9,14 +9,12 @@ def build_retrieval_filter(
     page_max: int | None = None,
     tag: str | None = None,
     document_type: str | None = None,
-    file_path: str | None = None,
 ) -> dict | None:
-    """Build Chroma where filter from document_id, page range, tag, document_type, and/or file_path.
+    """Build Chroma where filter from document_id, page range, tag, and/or document_type.
 
     Single page: page_min=64, page_max=64 filters to page 64 only.
     Tag filter returns only chunks with that tag (documents indexed with tag).
     document_type: "pdf", "youtube", "discord", "github", or "plaintext" to filter by source type.
-    file_path: For GitHub repos, exact path within the repo (e.g. src/ria/api/atr.c). Use list_documents to see files.
     """
     conditions: list[dict] = []
     if document_id and str(document_id).strip():
@@ -29,8 +27,6 @@ def build_retrieval_filter(
         conditions.append({"tag": tag.strip()})
     if document_type and str(document_type).strip():
         conditions.append({"document_type": document_type.strip()})
-    if file_path and str(file_path).strip():
-        conditions.append({"file_path": file_path.strip()})
     if not conditions:
         return None
     if len(conditions) == 1:

@@ -49,8 +49,6 @@ def format_documents_list() -> str:
             b = info["bytes"]
             size = f"{b / 1024:.1f} KB" if b >= 1024 else f"{b} B"
             extra.append(size)
-        if info.get("file_count") is not None:
-            extra.append(f"{info['file_count']} files")
         if info.get("tag"):
             extra.append(f"tag: {info['tag']}")
         suffix = f" ({', '.join(extra)})" if extra else ""

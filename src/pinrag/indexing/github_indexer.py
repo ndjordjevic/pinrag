@@ -190,7 +190,6 @@ def _index_github_flat(
     all_chunks: list[Document] = []
 
     for file_doc in load_result.documents:
-        file_path = file_doc.metadata.get("file_path", "")
         doc_bytes = file_doc.metadata.get("doc_bytes", 0)
 
         chunk_docs = chunk_documents(
@@ -204,7 +203,6 @@ def _index_github_flat(
         for doc in chunk_docs:
             doc.metadata["document_type"] = "github"
             doc.metadata["upload_timestamp"] = upload_ts
-            doc.metadata["file_path"] = file_path
             doc.metadata["doc_bytes"] = doc_bytes
             if tag is not None and str(tag).strip():
                 doc.metadata["tag"] = str(tag).strip()
@@ -245,7 +243,6 @@ def _index_github_parent_child(
     parent_entries: list[tuple[str, Document]] = []
 
     for file_doc in load_result.documents:
-        file_path = file_doc.metadata.get("file_path", "")
         doc_bytes = file_doc.metadata.get("doc_bytes", 0)
 
         parent_chunks = chunk_documents(
@@ -264,7 +261,6 @@ def _index_github_parent_child(
                     "document_id": repo_id,
                     "document_type": "github",
                     "upload_timestamp": upload_ts,
-                    "file_path": file_path,
                     "doc_bytes": doc_bytes,
                 }
             )
@@ -285,7 +281,6 @@ def _index_github_parent_child(
                         "document_id": repo_id,
                         "document_type": "github",
                         "upload_timestamp": upload_ts,
-                        "file_path": file_path,
                         "doc_bytes": doc_bytes,
                     }
                 )

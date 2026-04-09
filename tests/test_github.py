@@ -186,15 +186,14 @@ def test_load_github_repo_documents_mocked(mock_get: object) -> None:
     assert len(result.documents) == 2
     doc_ids = {d.metadata["document_id"] for d in result.documents}
     assert "owner/repo" in doc_ids
-    file_paths = {d.metadata["file_path"] for d in result.documents}
-    assert "README.md" in file_paths
-    assert "src/main.py" in file_paths
+    sources = {d.metadata["source"] for d in result.documents}
+    assert any("README.md" in s for s in sources)
+    assert any("main.py" in s for s in sources)
     for d in result.documents:
         assert d.metadata["document_type"] == "github"
         assert d.metadata["repo"] == "owner/repo"
         assert d.metadata["branch"] == "main"
         assert "source" in d.metadata
-        assert "file_path" in d.metadata
 
 
 @patch("pinrag.indexing.github_loader.requests.get")
@@ -228,7 +227,7 @@ def test_load_github_repo_excludes_binary_files(mock_get: object) -> None:
     result = load_github_repo_as_documents("https://github.com/x/y")
 
     assert result.files_loaded == 1
-    assert result.documents[0].metadata["file_path"] == "README.md"
+    assert "README.md" in result.documents[0].metadata["source"]
 
 
 @patch("pinrag.indexing.github_loader.requests.get")
@@ -297,7 +296,7 @@ def test_load_github_repo_records_per_file_fetch_failures(mock_get: object) -> N
 
     assert result.files_loaded == 1
     assert len(result.documents) == 1
-    assert result.documents[0].metadata["file_path"] == "ok.py"
+    assert "ok.py" in result.documents[0].metadata["source"]
     assert len(result.failed_files) == 1
     assert result.failed_files[0]["path"] == "missing.py"
     assert "500" in result.failed_files[0]["error"]
@@ -347,7 +346,7 @@ def test_index_github_smoke(mock_get: object, tmp_path: Path) -> None:
     assert len(docs) > 0
     assert docs[0].metadata.get("document_type") == "github"
     assert docs[0].metadata.get("document_id") == "ndjordjevic/pinrag"
-    assert docs[0].metadata.get("file_path") == "README.md"
+    assert "README.md" in (docs[0].metadata.get("source") or "")
 
 
 @patch("pinrag.indexing.github_loader.requests.get")

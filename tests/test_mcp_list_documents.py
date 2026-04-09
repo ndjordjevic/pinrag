@@ -121,19 +121,19 @@ def test_list_documents_aggregates_bytes_across_files(tmp_path: Path) -> None:
             {
                 "document_id": "owner/repo",
                 "document_type": "github",
-                "file_path": "a.py",
+                "source": "https://github.com/owner/repo/blob/main/a.py",
                 "doc_bytes": 100,
             },
             {
                 "document_id": "owner/repo",
                 "document_type": "github",
-                "file_path": "a.py",
+                "source": "https://github.com/owner/repo/blob/main/a.py",
                 "doc_bytes": 100,
             },
             {
                 "document_id": "owner/repo",
                 "document_type": "github",
-                "file_path": "b.py",
+                "source": "https://github.com/owner/repo/blob/main/b.py",
                 "doc_bytes": 96,
             },
         ]
@@ -144,7 +144,6 @@ def test_list_documents_aggregates_bytes_across_files(tmp_path: Path) -> None:
 
     assert result["documents"] == ["owner/repo"]
     assert result["document_details"]["owner/repo"]["bytes"] == 196
-    assert result["document_details"]["owner/repo"]["file_count"] == 2
 
 
 def test_list_documents_includes_segments_for_youtube(tmp_path: Path) -> None:

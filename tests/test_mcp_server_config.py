@@ -269,7 +269,6 @@ def test_query_tool_schema_has_expected_parameters() -> None:
     assert "page_max" in params
     assert "tag" in params
     assert "document_type" in params
-    assert "file_path" in params
     assert "response_style" in params
     assert "ctx" in params
 

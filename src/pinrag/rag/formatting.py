@@ -15,16 +15,19 @@ def _format_timestamp(seconds: int | float) -> str:
 
 
 def _citation_label(meta: dict) -> str:
-    """Return citation label: 'p. N' for PDF, 't. M:SS' for YouTube, file_path for GitHub, else '?'."""
+    """Return citation label: 'p. N' for PDF, 't. M:SS' for YouTube, chunk index for GitHub, else '?'."""
     start = meta.get("start")
     if start is not None:
         try:
             return f"t. {_format_timestamp(start)}"
         except (TypeError, ValueError):
             pass
-    file_path = meta.get("file_path")
-    if file_path and meta.get("document_type") == "github":
-        return file_path
+    if meta.get("document_type") == "github":
+        ci = meta.get("chunk_index")
+        if ci is not None:
+            return f"p. {ci}"
+        page = meta.get("page", "?")
+        return f"p. {page}"
     if meta.get("document_type") == "discord":
         channel = meta.get("channel")
         return f"channel: {channel}" if channel else "discord"
@@ -73,15 +76,14 @@ def format_docs(docs: list[Document], *, number_chunks: bool = True) -> str:
 def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
     """Build a list of unique source references from retrieved documents for citations.
 
-    Deduplicates by (document_id, page_or_start_or_file_path). Each item has "document_id",
-    "page" (for PDFs), "start" when present (YouTube timestamp), "file_path" for GitHub.
+    Deduplicates by (document_id, page_or_start_or_source). Each item has "document_id",
+    "page" (for PDFs), "start" when present (YouTube timestamp).
 
     Args:
         docs: Retrieved chunk documents.
 
     Returns:
-        List of dicts with document_id, page (0 for YouTube/GitHub), start when present,
-        file_path when present (GitHub).
+        List of dicts with document_id, page (0 for YouTube/non-PDF), start when present.
 
     """
     seen: set[tuple[str, int | str]] = set()
@@ -94,7 +96,6 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
             or meta.get("source")
             or "?"
         )
-        file_path = meta.get("file_path")
         start = meta.get("start")
         if start is not None:
             try:
@@ -108,11 +109,12 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
                 if key not in seen:
                     seen.add(key)
                     out.append({"document_id": doc_id, "page": 0})
-        elif file_path and meta.get("document_type") == "github":
-            key = (doc_id, file_path)
+        elif meta.get("document_type") == "github":
+            src = str(meta.get("source") or "")
+            key = (doc_id, src) if src else (doc_id, 0)
             if key not in seen:
                 seen.add(key)
-                out.append({"document_id": doc_id, "page": 0, "file_path": file_path})
+                out.append({"document_id": doc_id, "page": 0})
         else:
             try:
                 page = int(meta.get("page", 0))

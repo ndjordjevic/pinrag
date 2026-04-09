@@ -90,12 +90,6 @@ async def query_tool(
             description="Optional type to filter: 'pdf', 'youtube', 'discord', 'github', or 'plaintext'."
         ),
     ] = "",
-    file_path: Annotated[
-        str,
-        Field(
-            description="Optional file path within a document (GitHub: e.g. src/ria/api/atr.c). Use list_documents to see files."
-        ),
-    ] = "",
     response_style: Annotated[
         str,
         Field(
@@ -119,7 +113,6 @@ async def query_tool(
         page_max: Optional end of page range (inclusive). PDF only.
         tag: Optional tag to filter retrieval (from list_documents).
         document_type: Optional type to filter: "pdf", "youtube", "discord", "github", or "plaintext".
-        file_path: Optional file path within a document (GitHub: e.g. src/ria/api/atr.c). Use list_documents to see files.
         response_style: Answer style; omit or empty string uses PINRAG_RESPONSE_STYLE.
         ctx: MCP request context (injected by the server; unused).
 
@@ -143,7 +136,6 @@ async def query_tool(
             page_max=page_max,
             tag=tag or None,
             document_type=document_type or None,
-            file_path=file_path or None,
             response_style=style,
             verbose_emitter=verbose_emitter,
         )
@@ -404,7 +396,6 @@ def use_pinrag(request: str = "") -> str:
         "  Optional: document_id (filter to one doc, from list_documents_tool), "
         "page_min/page_max (PDF page range), tag (filter by tag), "
         "document_type ('pdf', 'youtube', 'discord', 'github', 'plaintext'), "
-        "file_path (filter to a file within a doc, e.g. src/foo.c for GitHub), "
         "response_style ('thorough' or 'concise').\n\n"
         "add_document_tool — index local files, directories, or remote URLs.\n"
         "  Required: paths (list of str: file paths, dir paths, YouTube URLs/IDs, GitHub URLs). "
