@@ -59,6 +59,17 @@ def test_format_docs_unnumbered() -> None:
     assert "Only text." in out
 
 
+def test_format_docs_default_omits_chunk_numbers() -> None:
+    """format_docs defaults to plain chunk text (no [N] / doc: lines)."""
+    docs = [
+        Document(page_content="Alpha.", metadata={"document_id": "x.pdf", "page": 1}),
+    ]
+    out = format_docs(docs)
+    assert "[1]" not in out
+    assert "doc:" not in out
+    assert "Alpha." in out
+
+
 def test_format_sources_empty() -> None:
     """format_sources with no docs returns empty list."""
     assert format_sources([]) == []

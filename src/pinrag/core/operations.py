@@ -148,6 +148,8 @@ def query(
         }
         if "start" in s:
             item["start"] = int(s["start"])
+        if s.get("title"):
+            item["title"] = str(s["title"])
         sources_out.append(item)
     return {"answer": rag_result.answer, "sources": sources_out}
 

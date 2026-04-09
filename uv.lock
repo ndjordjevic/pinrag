@@ -2232,7 +2232,7 @@ wheels = [
 
 [[package]]
 name = "pinrag"
-version = "0.9.26"
+version = "0.9.27"
 source = { editable = "." }
 dependencies = [
     { name = "chromadb" },

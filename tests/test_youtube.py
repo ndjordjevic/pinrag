@@ -314,6 +314,43 @@ def test_format_sources_includes_start_for_youtube() -> None:
     assert sources[1] == {"document_id": "vid1", "page": 0, "start": 120}
 
 
+def test_format_sources_includes_title_for_youtube_when_in_metadata() -> None:
+    """format_sources adds title for YouTube when doc_title or title is on chunks."""
+    docs = [
+        Document(
+            page_content="A",
+            metadata={
+                "document_id": "vid1",
+                "document_type": "youtube",
+                "start": 10,
+                "doc_title": "Learn Rust",
+            },
+        ),
+        Document(
+            page_content="B",
+            metadata={
+                "document_id": "vid2",
+                "document_type": "youtube",
+                "start": 20,
+                "title": "Only title key",
+            },
+        ),
+    ]
+    sources = format_sources(docs)
+    assert sources[0] == {
+        "document_id": "vid1",
+        "page": 0,
+        "start": 10,
+        "title": "Learn Rust",
+    }
+    assert sources[1] == {
+        "document_id": "vid2",
+        "page": 0,
+        "start": 20,
+        "title": "Only title key",
+    }
+
+
 def test_format_sources_page_for_pdf() -> None:
     """format_sources returns page for PDF chunks (no start)."""
     docs = [

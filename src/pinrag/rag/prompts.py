@@ -14,8 +14,7 @@ Instructions:
 - When multiple context blocks cover different aspects of the answer, combine them into a complete response.
 - When a capability varies across modes, chipsets, or configurations, list EACH variant separately with its specific value.
 - If the context does not contain enough information to answer the question, say so.
-- Think step-by-step internally before finalizing your answer, but do not reveal hidden reasoning.
-- Cite sources using the labels [1], [2], etc. that appear next to each context block."""
+- Think step-by-step internally before finalizing your answer, but do not reveal hidden reasoning."""
 
 RAG_SYSTEM_CONCISE = """You are a technical expert that answers questions based only on the provided context.
 
@@ -24,8 +23,7 @@ Instructions:
 - Keep the response concise while preserving technical correctness.
 - Include concrete numbers, register names, addresses, and bit-level details only when needed to answer accurately.
 - If the context does not contain enough information to answer the question, say so.
-- Think step-by-step internally before finalizing your answer, but do not reveal hidden reasoning.
-- Cite sources using the labels [1], [2], etc. that appear next to each context block."""
+- Think step-by-step internally before finalizing your answer, but do not reveal hidden reasoning."""
 
 RAG_HUMAN = """Context:
 {context}

@@ -14,6 +14,17 @@ def _format_timestamp(seconds: int | float) -> str:
     return f"0:{s:02d}"
 
 
+def _youtube_display_title(meta: dict) -> str | None:
+    """Human-readable video title for YouTube chunks, if present."""
+    if meta.get("document_type") != "youtube":
+        return None
+    raw = meta.get("doc_title") or meta.get("title")
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    return s or None
+
+
 def _citation_label(meta: dict) -> str:
     """Return citation label: 'p. N' for PDF, 't. M:SS' for YouTube, chunk index for GitHub, else '?'."""
     start = meta.get("start")
@@ -37,16 +48,16 @@ def _citation_label(meta: dict) -> str:
     return f"p. {page}"
 
 
-def format_docs(docs: list[Document], *, number_chunks: bool = True) -> str:
+def format_docs(docs: list[Document], *, number_chunks: bool = False) -> str:
     """Turn a list of chunk documents into a single context string for the prompt.
 
-    Each chunk is separated by newlines. If number_chunks is True, each block
-    is prefixed with [N] (doc: <document_id>, <label>) so the model and users
-    can refer to sources. Label is "p. <page>" for PDFs, "t. M:SS" for YouTube.
+    Each chunk is separated by a blank line. If number_chunks is True, each block
+    is prefixed with [N] (doc: <document_id>, <label>). By default only chunk text
+    is included; use sources / citation UX outside the LLM for provenance.
 
     Args:
         docs: Retrieved chunk documents (with metadata such as page, start, document_id).
-        number_chunks: Whether to add [1], [2], ... and doc/label.
+        number_chunks: Whether to add [1], [2], ... and doc/label (off by default).
 
     Returns:
         A single string suitable for the {context} placeholder in the RAG prompt.
@@ -77,13 +88,15 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
     """Build a list of unique source references from retrieved documents for citations.
 
     Deduplicates by (document_id, page_or_start_or_source). Each item has "document_id",
-    "page" (for PDFs), "start" when present (YouTube timestamp).
+    "page" (for PDFs), "start" when present (YouTube timestamp), and optional "title"
+    for YouTube videos when chunk metadata includes a title.
 
     Args:
         docs: Retrieved chunk documents.
 
     Returns:
-        List of dicts with document_id, page (0 for YouTube/non-PDF), start when present.
+        List of dicts with document_id, page (0 for YouTube/non-PDF), start when present,
+        and optional title for YouTube.
 
     """
     seen: set[tuple[str, int | str]] = set()
@@ -103,18 +116,34 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
                 key = (doc_id, start_int)
                 if key not in seen:
                     seen.add(key)
-                    out.append({"document_id": doc_id, "page": 0, "start": start_int})
+                    item: dict[str, str | int] = {
+                        "document_id": doc_id,
+                        "page": 0,
+                        "start": start_int,
+                    }
+                    yt_title = _youtube_display_title(meta)
+                    if yt_title:
+                        item["title"] = yt_title
+                    out.append(item)
             except (TypeError, ValueError):
                 key = (doc_id, 0)
                 if key not in seen:
                     seen.add(key)
-                    out.append({"document_id": doc_id, "page": 0})
+                    item = {"document_id": doc_id, "page": 0}
+                    yt_title = _youtube_display_title(meta)
+                    if yt_title:
+                        item["title"] = yt_title
+                    out.append(item)
         elif meta.get("document_type") == "github":
             src = str(meta.get("source") or "")
             key = (doc_id, src) if src else (doc_id, 0)
             if key not in seen:
                 seen.add(key)
-                out.append({"document_id": doc_id, "page": 0})
+                item = {"document_id": doc_id, "page": 0}
+                yt_title = _youtube_display_title(meta)
+                if yt_title:
+                    item["title"] = yt_title
+                out.append(item)
         else:
             try:
                 page = int(meta.get("page", 0))
@@ -123,5 +152,9 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
             key = (doc_id, page)
             if key not in seen:
                 seen.add(key)
-                out.append({"document_id": doc_id, "page": page})
+                item = {"document_id": doc_id, "page": page}
+                yt_title = _youtube_display_title(meta)
+                if yt_title:
+                    item["title"] = yt_title
+                out.append(item)
     return out

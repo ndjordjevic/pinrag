@@ -124,6 +124,40 @@ def test_query_sources_include_start_for_youtube(tmp_path: Path) -> None:
     assert mock_run_rag.call_args[0][0] == "What does the video say?"
 
 
+def test_query_sources_include_title_for_youtube(tmp_path: Path) -> None:
+    """Query passes through title in sources when present (e.g. from format_sources)."""
+    from pinrag.rag import RAGResult
+
+    (tmp_path / "chroma_db").mkdir(parents=True, exist_ok=True)
+    mock_run_rag = MagicMock(
+        return_value=RAGResult(
+            answer="Answer.",
+            sources=[
+                {
+                    "document_id": "abc",
+                    "page": 0,
+                    "start": 1,
+                    "title": "My Video",
+                }
+            ],
+        )
+    )
+
+    with patch("pinrag.core.operations.get_persist_dir", return_value=str(tmp_path)):
+        with patch("pinrag.core.operations.get_collection_name", return_value="test_coll"):
+            with patch("pinrag.core.operations.get_embedding_model"):
+                with patch("pinrag.core.operations.get_chat_model"):
+                    with patch("pinrag.core.operations.run_rag", mock_run_rag):
+                        result = query(user_query="q")
+
+    assert result["sources"][0] == {
+        "document_id": "abc",
+        "page": 0,
+        "start": 1,
+        "title": "My Video",
+    }
+
+
 def test_query_page_range_validation() -> None:
     """Query raises when page_min or page_max is provided without the other."""
     with pytest.raises(
