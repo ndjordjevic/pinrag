@@ -14,9 +14,11 @@ from pinrag.core.operations import (
     VerboseSyncEmitter,
     add_file,
     add_files,
+    list_collections,
     list_documents,
     query,
     remove_document,
+    set_document_tag,
 )
 
 # Legacy private names (tests / callers that had imports from this module)
@@ -37,9 +39,11 @@ __all__ = [
     "detect_file_format",
     "detect_source_format",
     "is_github_url",
+    "list_collections",
     "list_documents",
     "query",
     "remove_document",
+    "set_document_tag",
     "resolve_persist_dir_path",
     "resolve_user_content_path",
     # Legacy aliases

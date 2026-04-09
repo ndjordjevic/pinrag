@@ -34,13 +34,14 @@ Rationale: Dropping stdio breaks all existing editor configs, marketplace listin
 | Slash commands | Convention-based dispatcher (method `cmd_foo()` becomes `/foo`) |
 | Streaming display | **Rich.Live** |
 | Input history | **prompt_toolkit.FileHistory** |
-| Conversation history | JSON files (Phase 1) |
+| Conversation history | JSON files under `~/.pinrag-cli/history/` |
+| Session follow-ups (planned) | Rolling recent Q/A prepended to the next query (Phase 2.5) |
 | MCP client | `mcp` SDK (`streamable_http_client`, `ClientSession`) |
 | ASGI server | **Uvicorn** |
 
 ---
 
-## Phase 0 — Core Extraction (pinrag repo refactor)
+## Phase 0 — Core Extraction *(done)*
 
 Extract transport-agnostic business logic out of `mcp/tools.py` into `pinrag.core` so any consumer (CLI, MCP server, scripts) can import cleanly.
 
@@ -52,7 +53,7 @@ Extract transport-agnostic business logic out of `mcp/tools.py` into `pinrag.cor
 
 After this phase, `pinrag-cli` (and future consumers) can `from pinrag.core import query, add_files, list_documents, remove_document`.
 
-## Phase 1 — Minimal Viable CLI
+## Phase 1 — Minimal Viable CLI *(done)*
 
 - Interactive REPL: plain text = query, `/command` = action
 - Slash commands: `/add`, `/list`, `/remove`, `/status`, `/help`, `/exit`
@@ -60,18 +61,22 @@ After this phase, `pinrag-cli` (and future consumers) can `from pinrag.core impo
 - Output: Rich markdown, tables, citations
 - Input: prompt_toolkit with file history
 
-## Phase 2 — Server Mode & Streaming
+## Phase 2 — Server Mode & Streaming *(implemented)*
 
-- Add `pinrag server` subcommand (streamable-http on `localhost:8765`)
-- CLI switches to **MCP streamable-http client** (decoupled from pinrag env)
-- Streaming response display (Rich.Live)
-- Persistent conversation history (JSON files)
-- Collection switching (`/switch`)
+- **`pinrag server`** — streamable-http MCP (default bind e.g. `127.0.0.1:8765`).
+- **`pinrag-cli --server <url>`** — REPL uses the HTTP MCP client; LLM/embeddings env live on the server process.
+- **Rich.Live** — streaming progress while querying and for tool-backed slash commands.
+- **Session history** — JSON turns under `~/.pinrag-cli/history/`; **`/history`** in the REPL.
+- **`/switch`** — list or select Chroma collection name for the active backend.
+
+## Phase 2.5 — Session conversational memory *(planned)*
+
+Follow-ups in one session (“elaborate”, “what about page 5?”) without restating context: **pinrag-cli** keeps a short in-memory **rolling Q/A window** and folds it into the next query (bounded length). JSON `/history` unchanged. Optional **`/clear`** and env to turn off. Cross-session resume and core/API chat history stay Phase 3+.
 
 ## Phase 3 — Polish & Expansion
 
 - Consider **Textual** TUI upgrade (split panes, scrollable history)
-- Multi-collection awareness
+- Richer multi-collection / session UX (beyond `/switch` and per-session files)
 - Session management (resume previous conversations)
 - Config file (`~/.config/pinrag-cli/config.toml`)
 
@@ -82,6 +87,6 @@ After this phase, `pinrag-cli` (and future consumers) can `from pinrag.core impo
 1. Streaming over MCP — how to stream RAG responses?
 2. Auth for local HTTP transport
 3. Conversation history format — JSON vs SQLite?
-4. Collection management UX — discovery and switching
+4. Collection management UX — defaults, discovery, naming (beyond `/switch`)
 5. Server lifecycle — should CLI auto-start the server?
 6. Server startup — foreground process or daemon?

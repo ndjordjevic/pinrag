@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
@@ -86,6 +86,104 @@ def test_format_sources_dedup() -> None:
     assert len(sources) == 2
     assert sources[0] == {"document_id": "f.pdf", "page": 1}
     assert sources[1] == {"document_id": "f.pdf", "page": 2}
+
+
+def test_apply_post_retrieval_doc_limit() -> None:
+    from pinrag.rag.chain import _apply_post_retrieval_doc_limit
+
+    docs = [Document(page_content=str(i), metadata={}) for i in range(5)]
+    assert len(_apply_post_retrieval_doc_limit(docs, None)) == 5
+    assert len(_apply_post_retrieval_doc_limit(docs, 10)) == 5
+    assert len(_apply_post_retrieval_doc_limit(docs, 2)) == 2
+    assert _apply_post_retrieval_doc_limit(docs, 0) == docs
+
+
+def test_build_retriever_returns_truncate_k_from_standard_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pinrag.rag import chain as chain_mod
+
+    monkeypatch.setattr(
+        chain_mod,
+        "is_rerank_available",
+        lambda: (False, "no"),
+    )
+    monkeypatch.setenv("PINRAG_USE_MULTI_QUERY", "true")
+    fake_ret = MagicMock()
+    with patch.object(
+        chain_mod,
+        "_build_standard_retriever",
+        return_value=(fake_ret, True, 42),
+    ):
+        r, lim = chain_mod.build_retriever(
+            MagicMock(),
+            k=7,
+            persist_directory=".",
+            collection_name="coll",
+        )
+    assert r is fake_ret
+    assert lim == 42
+
+
+def test_build_retriever_rerank_yields_no_truncate_cap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pinrag.rag import chain as chain_mod
+
+    monkeypatch.setenv("PINRAG_USE_RERANK", "true")
+    monkeypatch.setenv("PINRAG_USE_MULTI_QUERY", "false")
+    base = MagicMock()
+    wrapped = MagicMock(name="wrapped")
+    with patch.object(chain_mod, "is_rerank_available", return_value=(True, None)):
+        with patch.object(chain_mod, "create_retriever", return_value=base):
+            with patch.object(
+                chain_mod,
+                "wrap_retriever_with_rerank",
+                return_value=wrapped,
+            ) as wr:
+                r, lim = chain_mod.build_retriever(
+                    MagicMock(),
+                    k=5,
+                    persist_directory=".",
+                    collection_name="coll",
+                )
+    assert r is wrapped
+    assert lim is None
+    wr.assert_called_once()
+
+
+def test_run_rag_truncates_merged_docs_when_truncate_k_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Multi-query-without-rerank path caps docs passed to the LLM."""
+    many = [
+        Document(page_content=f"c{i}", metadata={"document_id": "d.pdf", "page": i})
+        for i in range(30)
+    ]
+
+    class FatRetriever(BaseRetriever):
+        def _get_relevant_documents(
+            self,
+            query: str,
+            *,
+            run_manager: CallbackManagerForRetrieverRun | None = None,
+        ) -> list[Document]:
+            return many
+
+    def fake_build(*_a: object, **_kw: object) -> tuple[BaseRetriever, int]:
+        return FatRetriever(), 10
+
+    monkeypatch.setattr("pinrag.rag.chain.build_retriever", fake_build)
+    llm = MagicMock()
+    llm.invoke.return_value = AIMessage(content="done")
+    result = run_rag(
+        "question?",
+        llm,
+        persist_directory="/tmp",
+        collection_name="coll",
+    )
+    assert len(result.documents) == 10
+    assert len(result.sources) == 10
 
 
 def test_rag_prompt_has_context_and_question() -> None:

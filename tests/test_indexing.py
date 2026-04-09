@@ -41,6 +41,7 @@ def test_index_pdf_smoke(tmp_path: Path, sample_pdf_path: Path) -> None:
     assert "doc_pages" in meta
     assert "doc_bytes" in meta
     assert "doc_total_chunks" in meta
+    assert meta.get("doc_title")
 
 
 def test_index_pdf_with_tag(tmp_path: Path, sample_pdf_path: Path) -> None:

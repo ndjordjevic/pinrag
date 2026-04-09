@@ -5,24 +5,24 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from typer.testing import CliRunner
 
-from pinrag.cli import main
+from pinrag.cli import app
 
 
 def test_main_exits_without_llm_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """main() exits with code 1 when OPENROUTER_API_KEY is not set (default LLM provider)."""
+    """CLI exits with code 1 when no LLM API key (default OpenRouter)."""
     monkeypatch.delenv("PINRAG_LLM_PROVIDER", raising=False)
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    with pytest.raises(SystemExit) as exc_info:
-        main()
-    assert exc_info.value.code == 1
+    runner = CliRunner()
+    result = runner.invoke(app, [], catch_exceptions=False)
+    assert result.exit_code == 1
 
 
-def test_main_runs_mcp_server(monkeypatch: pytest.MonkeyPatch) -> None:
-    """main() runs MCP server when required API keys are set."""
-    # Default LLM is openrouter — set OPENROUTER_API_KEY (or use openai + OPENAI_API_KEY).
+def test_main_runs_mcp_stdio_server(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default invocation runs MCP server with stdio transport."""
     monkeypatch.delenv("PINRAG_LLM_PROVIDER", raising=False)
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test-key")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
@@ -31,8 +31,50 @@ def test_main_runs_mcp_server(monkeypatch: pytest.MonkeyPatch) -> None:
     with patch("pinrag.cli.configure_logging"):
         with patch("pinrag.cli.mcp", mock_mcp):
             with patch("pinrag.cli.__version__", "9.9.9-test"):
-                with patch("pinrag.cli.sys.stderr") as mock_stderr:
-                    main()
+                runner = CliRunner()
+                result = runner.invoke(app, [], catch_exceptions=False)
+    assert result.exit_code == 0
     mock_mcp.run.assert_called_once_with(transport="stdio")
-    mock_stderr.write.assert_called_once_with("PinRAG MCP v9.9.9-test\n")
-    mock_stderr.flush.assert_called_once()
+
+
+def test_server_subcommand_runs_streamable_http(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`pinrag server` uses streamable-http and applies host/port to FastMCP settings."""
+    monkeypatch.delenv("PINRAG_LLM_PROVIDER", raising=False)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test-key")
+    mock_mcp = MagicMock()
+    mock_mcp.settings = MagicMock()
+    with patch("pinrag.cli.configure_logging"):
+        with patch("pinrag.cli.mcp", mock_mcp):
+            runner = CliRunner()
+            result = runner.invoke(
+                app,
+                ["server", "--host", "0.0.0.0", "--port", "9999"],
+                catch_exceptions=False,
+            )
+    assert result.exit_code == 0
+    assert mock_mcp.settings.host == "0.0.0.0"
+    assert mock_mcp.settings.port == 9999
+    mock_mcp.run.assert_called_once_with(transport="streamable-http")
+
+
+def test_backfill_pdf_titles_subcommand_skips_llm_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """backfill-pdf-titles does not require LLM API keys."""
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    import chromadb
+
+    client = chromadb.PersistentClient(path=str(tmp_path))
+    client.get_or_create_collection("pinrag")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        ["backfill-pdf-titles", "--persist-dir", str(tmp_path), "--collection", "pinrag"],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert "Updated" in (result.stderr or "")

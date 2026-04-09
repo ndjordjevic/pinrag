@@ -305,8 +305,8 @@
 - [x] Investigate how to use Cerebras skill to use LiteLLM via OpenRouter to the openrouter/openai/gpt-oss-120b model with Cerebras as the inference provider to improve the RAG pipeline.
 - [x] Add Cerebras Inference provider to the pinrag mcp server.
 - [x] Polish README.md and make it more user-friendly.
-- [ ] Implement advertising strategies
-- [ ] I like how fancy Claude Code Cli looks like so just an idea of UI interface for my pinrag-tutor
+- [x] Implement advertising strategies
+- [x] **pinrag-cli Phases 0–2** — See [notes/pinrag-client-study.md](notes/pinrag-client-study.md). **Phase 0:** transport-agnostic ops in `pinrag.core`. **Phase 1:** REPL, in-process `BackendClient`, slash commands, Rich output, prompt_toolkit + line history. **Phase 2:** `pinrag server` (streamable-http), `pinrag-cli --server …` MCP client, Rich streaming progress, JSON session history, `/switch`. **Later:** Textual TUI and polish (Phase 3 in that note).
 
 ---
 

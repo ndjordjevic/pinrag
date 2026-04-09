@@ -121,6 +121,11 @@ def _build_tool_summary(name: str, kwargs: dict[str, Any]) -> str:
         return f"tag={kwargs.get('tag', '')!r}"
     if name == "remove_document_tool":
         return f"document_id={kwargs.get('document_id', '')!r}"
+    if name == "set_document_tag_tool":
+        return (
+            f"document_id={kwargs.get('document_id', '')!r} "
+            f"tag={kwargs.get('tag', '')!r}"
+        )
     return ""
 
 

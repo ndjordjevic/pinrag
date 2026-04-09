@@ -14,9 +14,12 @@ from pinrag.core.operations import (
     VerboseSyncEmitter,
     add_file,
     add_files,
+    backfill_pdf_doc_titles,
+    list_collections,
     list_documents,
     query,
     remove_document,
+    set_document_tag,
 )
 
 __all__ = [
@@ -25,13 +28,16 @@ __all__ = [
     "VerboseSyncEmitter",
     "add_file",
     "add_files",
+    "backfill_pdf_doc_titles",
     "categorize_failures",
     "detect_file_format",
     "detect_source_format",
     "is_github_url",
+    "list_collections",
     "list_documents",
     "query",
     "remove_document",
+    "set_document_tag",
     "resolve_persist_dir_path",
     "resolve_user_content_path",
 ]

@@ -82,6 +82,7 @@ def test_list_documents_includes_document_details_when_present(tmp_path: Path) -
         "metadatas": [
             {
                 "document_id": "doc.pdf",
+                "document_type": "pdf",
                 "upload_timestamp": "2025-01-15T12:00:00Z",
                 "doc_pages": 56,
                 "doc_bytes": 12345,
@@ -90,6 +91,7 @@ def test_list_documents_includes_document_details_when_present(tmp_path: Path) -
             },
             {
                 "document_id": "doc.pdf",
+                "document_type": "pdf",
                 "upload_timestamp": "2025-01-15T12:00:00Z",
                 "doc_pages": 56,
                 "doc_bytes": 12345,
@@ -104,12 +106,40 @@ def test_list_documents_includes_document_details_when_present(tmp_path: Path) -
 
     assert result["documents"] == ["doc.pdf"]
     assert result["document_details"]["doc.pdf"] == {
+        "document_type": "pdf",
         "upload_timestamp": "2025-01-15T12:00:00Z",
         "pages": 56,
         "bytes": 12345,
         "chunks": 224,
         "tag": "amiga",
+        "ref": "doc.pdf",
+        "title": "doc",
     }
+
+
+def test_list_documents_pdf_title_from_filename_when_doc_title_missing(
+    tmp_path: Path,
+) -> None:
+    """PDF listings use filename stem as title when chunks lack doc_title."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    mock_store = MagicMock()
+    mock_store.get.return_value = {
+        "metadatas": [
+            {
+                "document_id": "Bare-metal Amiga programming 2021_ocr.pdf",
+                "document_type": "pdf",
+                "doc_pages": 128,
+                "doc_bytes": 99,
+            },
+        ]
+    }
+
+    with patch("pinrag.core.operations.get_chroma_store", return_value=mock_store):
+        result = list_documents(persist_dir=str(tmp_path), collection="test_coll")
+
+    d = "Bare-metal Amiga programming 2021_ocr.pdf"
+    assert result["document_details"][d]["title"] == "Bare-metal Amiga programming 2021_ocr"
+    assert result["document_details"][d]["ref"] == d
 
 
 def test_list_documents_aggregates_bytes_across_files(tmp_path: Path) -> None:
@@ -183,4 +213,5 @@ def test_list_documents_includes_segments_for_youtube(tmp_path: Path) -> None:
         result["document_details"]["dQw4w9WgXcQ"]["title"] == "Never Gonna Give You Up"
     )
     assert result["document_details"]["dQw4w9WgXcQ"]["document_type"] == "youtube"
+    assert result["document_details"]["dQw4w9WgXcQ"]["ref"] == "dQw4w9WgXcQ"
 

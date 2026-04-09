@@ -167,15 +167,17 @@ def test_remove_document_deletes_parent_chunks_when_parent_child_enabled(
     """remove_document deletes both Chroma children and docstore parents when parent-child is on."""
     tmp_path.mkdir(parents=True, exist_ok=True)
     mock_store = MagicMock()
-    # First call: get chunks by document_id; second: check if parent is referenced elsewhere
+    chunk_batch = {
+        "ids": ["child1", "child2"],
+        "metadatas": [
+            {"doc_id": "parent-uuid-1", "document_id": "doc.pdf"},
+            {"doc_id": "parent-uuid-1", "document_id": "doc.pdf"},
+        ],
+    }
+    # resolve_remove (direct hit) + remove_document get + parent ref check
     mock_store.get.side_effect = [
-        {
-            "ids": ["child1", "child2"],
-            "metadatas": [
-                {"doc_id": "parent-uuid-1", "document_id": "doc.pdf"},
-                {"doc_id": "parent-uuid-1", "document_id": "doc.pdf"},
-            ],
-        },
+        chunk_batch,
+        chunk_batch,
         {"metadatas": [{"document_id": "doc.pdf"}]},  # parent only ref'd by doc.pdf
     ]
     mock_docstore = MagicMock()
@@ -270,6 +272,7 @@ def test_query_tool_schema_has_expected_parameters() -> None:
     assert "tag" in params
     assert "document_type" in params
     assert "response_style" in params
+    assert "collection" in params
     assert "ctx" in params
 
 
@@ -301,6 +304,7 @@ def test_add_document_tool_schema_has_expected_parameters() -> None:
     assert "branch" in params
     assert "include_patterns" in params
     assert "exclude_patterns" in params
+    assert "collection" in params
     assert "ctx" in params
 
 

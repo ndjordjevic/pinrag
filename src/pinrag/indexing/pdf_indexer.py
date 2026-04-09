@@ -34,6 +34,15 @@ from pinrag.vectorstore.docstore import (
 PathLike = str | Path
 
 
+def pdf_doc_title(*, pdf_path: Path, page_documents: list[Document]) -> str:
+    """Human-facing title for Chroma metadata: PDF /Title if present, else file stem."""
+    for doc in page_documents:
+        t = doc.metadata.get("document_title")
+        if t is not None and str(t).strip():
+            return str(t).strip()
+    return pdf_path.stem
+
+
 @dataclass(frozen=True)
 class IndexResult:
     """Summary of indexing a single PDF into Chroma."""
@@ -83,11 +92,13 @@ def index_pdf(
     pdf_path = Path(path).expanduser().resolve()
     pdf_result = load_pdf_as_documents(pdf_path)
     document_id = pdf_path.name
+    display_title = pdf_doc_title(pdf_path=pdf_path, page_documents=pdf_result.documents)
 
     if get_use_parent_child():
         chunk_docs, total_chunks = _index_pdf_parent_child(
             pdf_result=pdf_result,
             pdf_path=pdf_path,
+            display_title=display_title,
             persist_directory=persist_directory,
             collection_name=collection_name,
             embedding=embedding,
@@ -119,6 +130,7 @@ def index_pdf(
         doc_total_chunks = len(chunk_docs)
         for doc in chunk_docs:
             doc.metadata["document_type"] = "pdf"
+            doc.metadata["doc_title"] = display_title
             doc.metadata["upload_timestamp"] = upload_ts
             doc.metadata["doc_pages"] = doc_pages
             doc.metadata["doc_bytes"] = doc_bytes
@@ -150,6 +162,7 @@ def _index_pdf_parent_child(
     *,
     pdf_result: PdfLoadResult,
     pdf_path: Path,
+    display_title: str,
     persist_directory: PathLike,
     collection_name: str,
     embedding: Embeddings | None,
@@ -190,6 +203,7 @@ def _index_pdf_parent_child(
         parent.metadata["doc_id"] = parent_id
         parent.metadata["document_id"] = document_id
         parent.metadata["document_type"] = "pdf"
+        parent.metadata["doc_title"] = display_title
         parent.metadata["upload_timestamp"] = upload_ts
         parent.metadata["doc_pages"] = doc_pages
         parent.metadata["doc_bytes"] = doc_bytes
@@ -206,6 +220,7 @@ def _index_pdf_parent_child(
             c.metadata["doc_id"] = parent_id
             c.metadata["document_id"] = document_id
             c.metadata["document_type"] = "pdf"
+            c.metadata["doc_title"] = display_title
             c.metadata["upload_timestamp"] = upload_ts
             c.metadata["doc_pages"] = doc_pages
             c.metadata["doc_bytes"] = doc_bytes

@@ -20,7 +20,7 @@ Under the hood it is **Retrieval-Augmented Generation** built with **LangChain**
 - **RAG with citations** — Answers cite source context: PDF page, YouTube timestamp, document name for plain text and Discord, chunk index for GitHub repos
 - **Document tags** — Tag documents at index time (e.g. `AMIGA`, `PI_PICO`) for filtered search
 - **Metadata filtering** — `query_tool` supports `document_id`, `tag`, `document_type`, PDF `page_min`/`page_max`, and `response_style` (thorough or concise)
-- **MCP tools** — `add_document_tool` (files, dirs, or URLs), `query_tool`, `list_documents_tool`, `remove_document_tool`
+- **MCP tools** — `add_document_tool`, `query_tool`, `list_documents_tool`, `remove_document_tool`, `set_document_tag_tool`, `list_collections_tool`; optional `collection` on tools overrides `PINRAG_COLLECTION_NAME` for that call
 - **MCP resources** — `pinrag://documents` (indexed documents) and `pinrag://server-config` (env vars and config); click in Cursor’s MCP panel to view
 - **MCP prompt** — `use_pinrag` (parameter: request) for querying, indexing, listing, or removing documents
 - **Configurable LLM** — OpenRouter (default, free `openrouter/free` router), OpenAI, Anthropic, or [Cerebras Inference](https://inference-docs.cerebras.ai/introduction) (OpenAI-compatible API); set via `PINRAG_LLM_PROVIDER` and `PINRAG_LLM_MODEL` in MCP `env` or your shell
@@ -68,6 +68,16 @@ Add PinRAG as an MCP server in your editor. Install [**uv**](https://docs.astral
 ```
 
 ## Quick Start
+
+### HTTP server mode
+
+For clients that speak MCP over HTTP (e.g. **[pinrag-cli](https://github.com/ndjordjevic/pinrag-cli)** with `--server`), run:
+
+```bash
+pinrag server [--host 127.0.0.1] [--port 8765]
+```
+
+This starts a **streamable-HTTP** MCP endpoint at `http://<host>:<port>/mcp`. The default `pinrag` stdio command for editors is unchanged; `pinrag server` is additive. Connect pinrag-cli with `--server http://127.0.0.1:8765/mcp`.
 
 ### Configure MCP server
 
@@ -220,7 +230,7 @@ Vector dimension is fixed per Chroma collection and must match the **`PINRAG_EMB
 
 - **Default:** `PINRAG_COLLECTION_NAME` defaults to **`pinrag`**. Do not change **`PINRAG_EMBEDDING_MODEL`** for an existing collection without re-indexing into a new collection (or wiping the old one); otherwise adds/queries can fail with embedding dimension errors.
 - **Per-model collections:** Use a **stable pair** of **`PINRAG_EMBEDDING_MODEL`** + **`PINRAG_COLLECTION_NAME`** (+ **`PINRAG_PERSIST_DIR`** if you isolate stores) for each index. To query a collection, set the **same** env values you used when indexing it. You can index the same sources again under another pair (change `env`, restart MCP if needed, run `add_document_tool`).
-- **MCP tools:** `server.py` wires every tool to **`config.get_persist_dir()`** and **`config.get_collection_name()`** only—there is no per-call collection or persist argument (`tools.query` / `add_files` accept optional `collection` in Python, but MCP does not expose that).
+- **MCP tools:** Each tool uses **`config.get_persist_dir()`** and **`config.get_collection_name()`** by default; optional **`collection`** on a tool call overrides the collection name for that request. **`list_collections_tool`** lists collection names in the configured persist directory (optional **`persist_dir`** override).
 
 ## MCP reference
 
@@ -235,7 +245,7 @@ Natural-language question; optional filters narrow retrieval (`""` / omit when u
 | Parameter | Description |
 |-----------|-------------|
 | `query` | Question (required) |
-| `document_id` | Limit to this document (id from `list_documents_tool`, e.g. PDF file name or YouTube video id) |
+| `document_id` | Limit to this document — exact ref from `list_documents_tool`, list title, or unique PDF filename stem |
 | `page_min`, `page_max` | Inclusive PDF page range (must pass both; one page: same value twice) |
 | `tag` | Only chunks with this tag |
 | `document_type` | `pdf`, `youtube`, `discord`, `github`, or `plaintext` |
@@ -265,13 +275,24 @@ Returns **`documents`**, **`total_chunks`**, **`persist_directory`**, **`collect
 |-----------|-------------|
 | `tag` | Optional: only docs that have this tag |
 
+
 ### `remove_document_tool`
 
-Deletes every chunk for **`document_id`** (exact id from **`list_documents_tool`**).
+Deletes every chunk for **`document_id`**. Accepts the exact ref from `list_documents_tool`, the list title, or a unique PDF filename stem.
 
 | Parameter | Description |
 |-----------|-------------|
-| `document_id` | Required |
+| `document_id` | Required — exact ref, list title, or unique PDF stem |
+
+### `set_document_tag_tool`
+
+Sets or replaces the **`tag`** on every indexed chunk for one document. Useful to add or correct a tag after indexing, without re-indexing. Same document-targeting rules as `remove_document_tool`.
+
+| Parameter | Description |
+|-----------|-------------|
+| `document_id` | Required — exact ref, list title, or unique PDF stem |
+| `tag` | Required — non-empty tag string |
+| `collection` | Optional override (default: `PINRAG_COLLECTION_NAME`) |
 
 ### MCP prompt: `use_pinrag`
 

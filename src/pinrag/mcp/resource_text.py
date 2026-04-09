@@ -29,8 +29,9 @@ def format_documents_list() -> str:
 
     def _sort_key(doc_id: str) -> tuple[str, str]:
         info = details.get(doc_id, {}) or {}
-        if info.get("document_type") == "youtube" and info.get("title"):
-            primary = str(info["title"]).casefold()
+        t = info.get("title")
+        if t is not None and str(t).strip():
+            primary = str(t).casefold()
         else:
             primary = str(doc_id).casefold()
         return (primary, str(doc_id).casefold())
@@ -52,8 +53,7 @@ def format_documents_list() -> str:
         if info.get("tag"):
             extra.append(f"tag: {info['tag']}")
         suffix = f" ({', '.join(extra)})" if extra else ""
-        # For YouTube with title, show title prominently with video ID
-        if info.get("document_type") == "youtube" and info.get("title"):
+        if info.get("title"):
             display_name = f"{info['title']} ({d})"
         else:
             display_name = d

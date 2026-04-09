@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import sys
+from pathlib import Path
 from typing import Annotated
 
 import anyio
@@ -22,8 +25,10 @@ from pinrag.mcp.logging_utils import (
 from pinrag.mcp.resource_text import format_documents_list, format_server_config
 from pinrag.mcp.tools import (
     add_files,
+    list_collections,
     list_documents,
     remove_document,
+    set_document_tag,
 )
 from pinrag.mcp.tools import (
     query as query_index,
@@ -32,6 +37,27 @@ from pinrag.mcp.tools import (
 logger = logging.getLogger(__name__)
 
 mcp = FastMCP("PinRAG", json_response=True)
+
+
+def emit_server_runtime_stderr() -> None:
+    """Print resolved Chroma path and LLM settings to stderr at process start.
+
+    Uses stderr so output appears in editors and next to uvicorn logs; the
+    ``pinrag`` logger is intentionally quiet after :func:`configure_logging`.
+    """
+    persist = Path(config.get_persist_dir()).expanduser()
+    try:
+        persist_display = str(persist.resolve())
+    except OSError:
+        persist_display = str(persist)
+    collection = config.get_collection_name()
+    provider = config.get_llm_provider()
+    model = config.get_llm_model()
+    sys.stderr.write(
+        f"PinRAG store: {persist_display}  collection: {collection}\n"
+        f"PinRAG LLM: {provider}  model: {model}\n"
+    )
+    sys.stderr.flush()
 
 
 def _attach_server_metadata(
@@ -52,6 +78,12 @@ def _drain_verbose_lines(verbose_emitter: object) -> list[str]:
     return collector.drain()
 
 
+def _collection_kwarg(collection: str) -> str | None:
+    """Return explicit collection name or None to use PINRAG_COLLECTION_NAME."""
+    c = (collection or "").strip()
+    return c if c else None
+
+
 @mcp._mcp_server.set_logging_level()
 async def _handle_set_logging_level(level: types.LoggingLevel) -> None:
     """Handle MCP ``logging/setLevel`` to declare logging capability."""
@@ -59,7 +91,7 @@ async def _handle_set_logging_level(level: types.LoggingLevel) -> None:
 
 
 # Re-export for pinrag.cli (F401: name used via import from this module).
-__all__ = ["configure_logging", "mcp"]
+__all__ = ["configure_logging", "emit_server_runtime_stderr", "mcp"]
 
 
 @mcp.tool()
@@ -69,7 +101,10 @@ async def query_tool(
     document_id: Annotated[
         str,
         Field(
-            description="Optional document ID to filter retrieval (from list_documents)."
+            description=(
+                "Optional document filter: exact ref from list_documents, exact list title, "
+                "or unique PDF stem (same rules as remove_document)."
+            ),
         ),
     ] = "",
     page_min: Annotated[
@@ -99,6 +134,14 @@ async def query_tool(
             ),
         ),
     ] = "",
+    collection: Annotated[
+        str,
+        Field(
+            description=(
+                "Optional Chroma collection name (default: PINRAG_COLLECTION_NAME)."
+            ),
+        ),
+    ] = "",
     ctx: Context | None = None,
 ) -> dict:
     """Query indexed documents and return an answer with citations.
@@ -108,13 +151,13 @@ async def query_tool(
 
     Args:
         query: Natural language question to ask.
-        document_id: Optional document ID to filter retrieval (from list_documents).
+        document_id: Optional document selector (ref, title, or unique PDF stem).
         page_min: Optional start of page range (inclusive). PDF only.
         page_max: Optional end of page range (inclusive). PDF only.
         tag: Optional tag to filter retrieval (from list_documents).
         document_type: Optional type to filter: "pdf", "youtube", "discord", "github", or "plaintext".
         response_style: Answer style; omit or empty string uses PINRAG_RESPONSE_STYLE.
-        ctx: MCP request context (injected by the server; unused).
+        ctx: MCP request context (injected by the server).
 
     Returns:
         Dictionary containing answer and sources (document_id, page).
@@ -128,6 +171,22 @@ async def query_tool(
 
     verbose_emitter = make_verbose_emitter(ctx, scope="tool", name="query_tool")
 
+    if ctx is not None:
+        await ctx.report_progress(0, 100, message="retrieving…")
+
+    # phase_callback is called from the worker thread after retrieval completes.
+    # We schedule report_progress on the running event loop via run_coroutine_threadsafe.
+    _loop = asyncio.get_running_loop()
+
+    def _phase_callback(phase: str) -> None:
+        if ctx is None:
+            return
+        if phase == "generating":
+            asyncio.run_coroutine_threadsafe(
+                ctx.report_progress(50, 100, message="generating answer…"),
+                _loop,
+            )
+
     def _run() -> dict:
         return query_index(
             user_query=query,
@@ -137,7 +196,9 @@ async def query_tool(
             tag=tag or None,
             document_type=document_type or None,
             response_style=style,
+            collection=_collection_kwarg(collection),
             verbose_emitter=verbose_emitter,
+            phase_callback=_phase_callback,
         )
 
     try:
@@ -145,6 +206,9 @@ async def query_tool(
     except Exception:
         mirror_verbose_to_output_panel(_drain_verbose_lines(verbose_emitter))
         raise
+
+    if ctx is not None:
+        await ctx.report_progress(100, 100, message="done")
 
     verbose_lines = _drain_verbose_lines(verbose_emitter)
     mirror_verbose_to_output_panel(verbose_lines)
@@ -184,6 +248,14 @@ async def add_document_tool(
             description="For GitHub URLs: glob patterns to exclude. Ignored for other formats."
         ),
     ] = None,
+    collection: Annotated[
+        str,
+        Field(
+            description=(
+                "Optional Chroma collection name (default: PINRAG_COLLECTION_NAME)."
+            ),
+        ),
+    ] = "",
     ctx: Context | None = None,
 ) -> dict:
     r"""Add files, directories, YouTube videos, or GitHub repos to the index.
@@ -217,7 +289,7 @@ async def add_document_tool(
         return add_files(
             paths=paths,
             persist_dir=config.get_persist_dir(),
-            collection=config.get_collection_name(),
+            collection=_collection_kwarg(collection),
             tags=tags,
             branch=branch,
             include_patterns=include_patterns,
@@ -247,6 +319,14 @@ async def list_documents_tool(
             description="Optional tag to filter: only list documents that have this tag."
         ),
     ] = "",
+    collection: Annotated[
+        str,
+        Field(
+            description=(
+                "Optional Chroma collection name (default: PINRAG_COLLECTION_NAME)."
+            ),
+        ),
+    ] = "",
     ctx: Context | None = None,
 ) -> dict:
     """List all indexed documents in the PinRAG index.
@@ -270,7 +350,7 @@ async def list_documents_tool(
     def _run() -> dict:
         return list_documents(
             persist_dir=config.get_persist_dir(),
-            collection=config.get_collection_name(),
+            collection=_collection_kwarg(collection),
             tag=tag or None,
             verbose_emitter=verbose_emitter,
         )
@@ -290,11 +370,60 @@ async def list_documents_tool(
 
 @mcp.tool()
 @_log_tool_errors
+async def list_collections_tool(
+    persist_dir: Annotated[
+        str,
+        Field(
+            description=(
+                "Optional persist directory override (default: PINRAG_PERSIST_DIR)."
+            ),
+        ),
+    ] = "",
+    ctx: Context | None = None,
+) -> dict:
+    """List Chroma collection names in the configured (or overridden) persist directory."""
+
+    verbose_emitter = make_verbose_emitter(
+        ctx, scope="tool", name="list_collections_tool"
+    )
+
+    def _run() -> dict:
+        pd = (persist_dir or "").strip() or None
+        return list_collections(persist_dir=pd, verbose_emitter=verbose_emitter)
+
+    try:
+        result = await anyio.to_thread.run_sync(_run)
+    except Exception:
+        mirror_verbose_to_output_panel(_drain_verbose_lines(verbose_emitter))
+        raise
+
+    verbose_lines = _drain_verbose_lines(verbose_emitter)
+    mirror_verbose_to_output_panel(verbose_lines)
+    if isinstance(result, dict):
+        return _attach_server_metadata(result, verbose_lines=verbose_lines)
+    return result
+
+
+@mcp.tool()
+@_log_tool_errors
 async def remove_document_tool(
     document_id: Annotated[
         str,
-        Field(description="Document identifier to remove (from list_documents_tool)."),
+        Field(
+            description=(
+                "Document ref from list_documents_tool, or the list title / PDF filename stem "
+                "if it uniquely identifies one document."
+            ),
+        ),
     ],
+    collection: Annotated[
+        str,
+        Field(
+            description=(
+                "Optional Chroma collection name (default: PINRAG_COLLECTION_NAME)."
+            ),
+        ),
+    ] = "",
     ctx: Context | None = None,
 ) -> dict:
     """Remove a document and all its chunks from the PinRAG index.
@@ -308,7 +437,8 @@ async def remove_document_tool(
         ctx: MCP request context (injected by the server; unused).
 
     Returns:
-        Dictionary containing deleted_chunks, document_id, persist_directory, collection_name.
+        Dictionary containing deleted_chunks, document_id (canonical ref after any title match),
+        persist_directory, collection_name.
 
     """
 
@@ -318,7 +448,59 @@ async def remove_document_tool(
         return remove_document(
             document_id=document_id,
             persist_dir=config.get_persist_dir(),
-            collection=config.get_collection_name(),
+            collection=_collection_kwarg(collection),
+            verbose_emitter=verbose_emitter,
+        )
+
+    try:
+        result = await anyio.to_thread.run_sync(_run)
+    except Exception:
+        mirror_verbose_to_output_panel(_drain_verbose_lines(verbose_emitter))
+        raise
+
+    verbose_lines = _drain_verbose_lines(verbose_emitter)
+    mirror_verbose_to_output_panel(verbose_lines)
+    if isinstance(result, dict):
+        return _attach_server_metadata(result, verbose_lines=verbose_lines)
+    return result
+
+
+@mcp.tool()
+@_log_tool_errors
+async def set_document_tag_tool(
+    document_id: Annotated[
+        str,
+        Field(
+            description=(
+                "Document ref from list_documents_tool, or list title / PDF stem "
+                "if it uniquely identifies one document."
+            ),
+        ),
+    ],
+    tag: Annotated[
+        str,
+        Field(description="Tag to set on all chunks (and parent docs when parent-child is enabled)."),
+    ],
+    collection: Annotated[
+        str,
+        Field(
+            description=(
+                "Optional Chroma collection name (default: PINRAG_COLLECTION_NAME)."
+            ),
+        ),
+    ] = "",
+    ctx: Context | None = None,
+) -> dict:
+    """Set or replace the tag on every indexed chunk for one document."""
+
+    verbose_emitter = make_verbose_emitter(ctx, scope="tool", name="set_document_tag_tool")
+
+    def _run() -> dict:
+        return set_document_tag(
+            document_id=document_id,
+            tag=tag,
+            persist_dir=config.get_persist_dir(),
+            collection=_collection_kwarg(collection),
             verbose_emitter=verbose_emitter,
         )
 
@@ -386,25 +568,34 @@ def use_pinrag(request: str = "") -> str:
     - Query / question  → query_tool
     - Index / add       → add_document_tool
     - List / show       → list_documents_tool
+    - Collections       → list_collections_tool
     - Remove / delete   → remove_document_tool
+    - Tag / label       → set_document_tag_tool
     """
     return (
         f"Use PinRAG to fulfil this request: {request or 'not specified'}.\n\n"
         "Available tools and when to use them:\n\n"
         "query_tool — answer a question from indexed documents.\n"
         "  Required: query (str). "
-        "  Optional: document_id (filter to one doc, from list_documents_tool), "
+        "  Optional: document_id (ref, exact list title, or unique PDF stem, like remove_document_tool), "
         "page_min/page_max (PDF page range), tag (filter by tag), "
         "document_type ('pdf', 'youtube', 'discord', 'github', 'plaintext'), "
-        "response_style ('thorough' or 'concise').\n\n"
+        "response_style ('thorough' or 'concise'), "
+        "collection (Chroma collection; default from PINRAG_COLLECTION_NAME).\n\n"
         "add_document_tool — index local files, directories, or remote URLs.\n"
         "  Required: paths (list of str: file paths, dir paths, YouTube URLs/IDs, GitHub URLs). "
         "  Optional: tags (list, one per path), branch (GitHub only), "
-        "include_patterns / exclude_patterns (GitHub only).\n\n"
+        "include_patterns / exclude_patterns (GitHub only), collection.\n\n"
         "list_documents_tool — list all indexed documents and chunk counts.\n"
-        "  Optional: tag (filter by tag).\n\n"
+        "  Optional: tag (filter by tag), collection.\n\n"
+        "list_collections_tool — list Chroma collection names in the persist directory.\n"
+        "  Optional: persist_dir (default from PINRAG_PERSIST_DIR).\n\n"
         "remove_document_tool — remove a document and all its chunks.\n"
-        "  Required: document_id (get exact ID from list_documents_tool first).\n\n"
+        "  Required: document_id (ref from list_documents, exact list title, or unique PDF stem).\n"
+        "  Optional: collection.\n\n"
+        "set_document_tag_tool — set or replace the tag for one document (all chunks).\n"
+        "  Required: document_id, tag (non-empty).\n"
+        "  Optional: collection.\n\n"
         "If the request is ambiguous, call list_documents_tool first to show what is indexed, "
         "then decide which tool to use."
     )

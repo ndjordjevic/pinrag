@@ -115,6 +115,15 @@ def _retrieve(retriever: BaseRetriever, query: str) -> list[Document]:
     return retriever.invoke(query)
 
 
+def _apply_post_retrieval_doc_limit(
+    docs: list[Document], truncate_k: int | None
+) -> list[Document]:
+    """Cap merged multi-query union before generation when reranking is off."""
+    if truncate_k is None or truncate_k <= 0:
+        return docs
+    return docs[:truncate_k]
+
+
 def _build_standard_retriever(
     *,
     llm: BaseChatModel,
@@ -155,6 +164,107 @@ def _build_standard_retriever(
             effective_k,
         )
     return base_retriever, False, None
+
+
+def build_retriever(
+    llm: BaseChatModel,
+    *,
+    k: int | None = None,
+    use_rerank: bool | None = None,
+    persist_directory: PathLike = DEFAULT_PERSIST_DIR,
+    collection_name: str | None = None,
+    embedding: Embeddings | None = None,
+    document_id: str | None = None,
+    page_min: int | None = None,
+    page_max: int | None = None,
+    tag: str | None = None,
+    document_type: str | None = None,
+) -> tuple[BaseRetriever, int | None]:
+    """Build a retriever and optional post-retrieval doc cap.
+
+    Returns ``(retriever, truncate_k)``. When multi-query is enabled and reranking
+    is not used, ``truncate_k`` is the effective ``k``; callers must slice
+    retrieved documents to at most ``truncate_k`` before generation. Otherwise
+    ``truncate_k`` is ``None``.
+    """
+    if collection_name is None:
+        collection_name = get_collection_name()
+    use_rerank = use_rerank if use_rerank is not None else get_use_rerank()
+    use_multi_query = get_use_multi_query()
+
+    if use_rerank:
+        available, err = is_rerank_available()
+        if available:
+            base_k = k if k is not None else get_rerank_retrieve_k()
+            top_n = get_rerank_top_n()
+            base_retriever = create_retriever(
+                k=base_k,
+                persist_directory=persist_directory,
+                collection_name=collection_name,
+                embedding=embedding,
+                document_id=document_id,
+                page_min=page_min,
+                page_max=page_max,
+                tag=tag,
+                document_type=document_type,
+            )
+            if use_multi_query:
+                base_retriever = wrap_retriever_with_multiquery(
+                    base_retriever,
+                    llm,
+                    num_queries=get_multi_query_count(),
+                )
+            return wrap_retriever_with_rerank(base_retriever, top_n=top_n), None
+        else:
+            logger.warning("Re-ranking disabled: %s. Using standard retrieval.", err)
+
+    effective_k = k if k is not None else get_retrieve_k()
+    retriever, _, truncate_k = _build_standard_retriever(
+        llm=llm,
+        use_multi_query=use_multi_query,
+        effective_k=effective_k,
+        persist_directory=persist_directory,
+        collection_name=collection_name,
+        embedding=embedding,
+        document_id=document_id,
+        page_min=page_min,
+        page_max=page_max,
+        tag=tag,
+        document_type=document_type,
+    )
+    return retriever, truncate_k
+
+
+def generate_answer(
+    query: str,
+    docs: list[Document],
+    llm: BaseChatModel,
+    *,
+    response_style: Literal["thorough", "concise"] = "thorough",
+) -> RAGResult:
+    """Run the LLM generation step given already-retrieved docs.
+
+    Separated from retrieval so callers can emit progress between the two phases.
+    """
+    if not docs:
+        return RAGResult(
+            answer="No relevant passages found; try a different query or add more documents.",
+            sources=[],
+            documents=[],
+        )
+    prompt = get_rag_prompt(response_style)
+    messages = prompt.invoke(
+        {"context": format_docs(docs), "question": query}
+    ).to_messages()
+    try:
+        response = llm.invoke(messages)
+        raw = getattr(response, "content", response)
+        answer = raw if isinstance(raw, str) else str(raw)
+        return RAGResult(answer=answer, sources=format_sources(docs), documents=docs)
+    except Exception as e:
+        logger.exception("LLM invocation failed in generate_answer")
+        msg = _user_facing_llm_error_message(e)
+        return RAGResult(answer=msg, sources=[], documents=docs)
 
 
 @traceable(name="run_rag", run_type="chain")
@@ -204,102 +314,21 @@ def run_rag(
 
     """
     query_for_retrieval = preprocess_query(query)
-    built_with_multi_query_no_rerank = False
     truncate_k: int | None = None
     if retriever is None:
-        if collection_name is None:
-            collection_name = get_collection_name()
-        use_rerank = use_rerank if use_rerank is not None else get_use_rerank()
-        use_multi_query = get_use_multi_query()
-
-        if use_rerank:
-            available, err = is_rerank_available()
-            if available:
-                base_k = k if k is not None else get_rerank_retrieve_k()
-                top_n = get_rerank_top_n()
-                base_retriever = create_retriever(
-                    k=base_k,
-                    persist_directory=persist_directory,
-                    collection_name=collection_name,
-                    embedding=embedding,
-                    document_id=document_id,
-                    page_min=page_min,
-                    page_max=page_max,
-                    tag=tag,
-                    document_type=document_type,
-                )
-                if use_multi_query:
-                    base_retriever = wrap_retriever_with_multiquery(
-                        base_retriever,
-                        llm,
-                        num_queries=get_multi_query_count(),
-                    )
-                retriever = wrap_retriever_with_rerank(base_retriever, top_n=top_n)
-            else:
-                logger.warning(
-                    "Re-ranking disabled: %s. Using standard retrieval.", err
-                )
-                effective_k = k if k is not None else get_retrieve_k()
-                retriever, built_with_multi_query_no_rerank, truncate_k = (
-                    _build_standard_retriever(
-                        llm=llm,
-                        use_multi_query=use_multi_query,
-                        effective_k=effective_k,
-                        persist_directory=persist_directory,
-                        collection_name=collection_name,
-                        embedding=embedding,
-                        document_id=document_id,
-                        page_min=page_min,
-                        page_max=page_max,
-                        tag=tag,
-                        document_type=document_type,
-                    )
-                )
-        else:
-            effective_k = k if k is not None else get_retrieve_k()
-            retriever, built_with_multi_query_no_rerank, truncate_k = (
-                _build_standard_retriever(
-                    llm=llm,
-                    use_multi_query=use_multi_query,
-                    effective_k=effective_k,
-                    persist_directory=persist_directory,
-                    collection_name=collection_name,
-                    embedding=embedding,
-                    document_id=document_id,
-                    page_min=page_min,
-                    page_max=page_max,
-                    tag=tag,
-                    document_type=document_type,
-                )
-            )
-    if retriever is None:
-        raise ValueError("Retriever must be provided or constructible from config.")
-    docs = _retrieve(retriever, query_for_retrieval)
-
-    if (
-        built_with_multi_query_no_rerank
-        and truncate_k is not None
-        and len(docs) > truncate_k
-    ):
-        docs = docs[:truncate_k]
-
-    if not docs:
-        return RAGResult(
-            answer="No relevant passages found; try a different query or add more documents.",
-            sources=[],
-            documents=[],
+        retriever, truncate_k = build_retriever(
+            llm,
+            k=k,
+            use_rerank=use_rerank,
+            persist_directory=persist_directory,
+            collection_name=collection_name,
+            embedding=embedding,
+            document_id=document_id,
+            page_min=page_min,
+            page_max=page_max,
+            tag=tag,
+            document_type=document_type,
         )
-
-    prompt = get_rag_prompt(response_style)
-    messages = prompt.invoke(
-        {"context": format_docs(docs), "question": query}
-    ).to_messages()
-    try:
-        response = llm.invoke(messages)
-        raw = getattr(response, "content", response)
-        answer = raw if isinstance(raw, str) else str(raw)
-        return RAGResult(answer=answer, sources=format_sources(docs), documents=docs)
-    except Exception as e:
-        logger.exception("LLM invocation failed in run_rag")
-        msg = _user_facing_llm_error_message(e)
-        return RAGResult(answer=msg, sources=[], documents=docs)
+    docs = _retrieve(retriever, query_for_retrieval)
+    docs = _apply_post_retrieval_doc_limit(docs, truncate_k)
+    return generate_answer(query, docs, llm, response_style=response_style)
