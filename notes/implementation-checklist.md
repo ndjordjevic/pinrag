@@ -306,7 +306,7 @@
 - [x] Add Cerebras Inference provider to the pinrag mcp server.
 - [x] Polish README.md and make it more user-friendly.
 - [x] Implement advertising strategies
-- [x] **pinrag-cli Phases 0–2** — See [notes/pinrag-client-study.md](notes/pinrag-client-study.md). **Phase 0:** transport-agnostic ops in `pinrag.core`. **Phase 1:** REPL, in-process `BackendClient`, slash commands, Rich output, prompt_toolkit + line history. **Phase 2:** `pinrag server` (streamable-http), `pinrag-cli --server …` MCP client, Rich streaming progress, JSON session history, `/switch`. **Later:** Textual TUI and polish (Phase 3 in that note).
+- [x] **pinrag-cli Phases 0–3a** — See [notes/pinrag-client-study.md](notes/pinrag-client-study.md). **Phase 0:** transport-agnostic ops in `pinrag.core`. **Phase 1:** REPL, in-process `BackendClient`, slash commands, Rich output, prompt_toolkit + line history. **Phase 2:** `pinrag server` (streamable-http), `pinrag-cli --server …` MCP client, Rich streaming progress, JSON session history, `/switch`. **Phase 2.5:** in-session conversational memory—rolling Q/A window folded into the next query (bounded), `/clear`, `PINRAG_CLI_MEMORY` / `PINRAG_CLI_MEMORY_TURNS`; JSON `/history` unchanged. **Phase 3a:** CLI config—`~/.config/pinrag-cli/config.toml` + per-project `.pinrag-cli.toml` (precedence: CLI flags → env → project → user → defaults); CLI-owned keys only (`collection`, `server_url`, `response_style`, memory); `--response-style`; `/config` + `/config set` (writes user TOML); reload preserves `/switch` and rolling memory when unrelated settings change. **Later:** Phase 3b–3d (sessions polish, multi-collection UX, Textual TUI) in that note.
 
 ---
 

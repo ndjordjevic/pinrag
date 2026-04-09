@@ -75,10 +75,57 @@ Follow-ups in one session (“elaborate”, “what about page 5?”) without re
 
 ## Phase 3 — Polish & Expansion
 
-- Consider **Textual** TUI upgrade (split panes, scrollable history)
-- Richer multi-collection / session UX (beyond `/switch` and per-session files)
-- Session management (resume previous conversations)
-- Config file (`~/.config/pinrag-cli/config.toml`)
+Split into three CLI polish tracks with a clear dependency order. **Phase 4** (below) is the Textual TUI and ships after 3a–3c are stable.
+
+| Action | Name | Scope | Depends On | Priority |
+|--------|------|-------|------------|----------|
+| **3a** | Config file support | Small-Medium | None | **Do first** |
+| **3b** | Session resume | Medium | 3a (to persist last session) | Second |
+| **3c** | Multi-collection UX polish | Medium | 3a (to persist default collection) | Third |
+
+### Phase 3a — Config file (`~/.config/pinrag-cli/config.toml`)
+
+Foundation for 3b and 3c — both need to persist state.
+
+- Parse TOML (`tomllib`, stdlib since Python 3.11)
+- Persist defaults: collection, persist-dir, server URL, LLM provider/model
+- CLI preferences: memory on/off, memory turns, response style
+- Per-project overrides via `.pinrag-cli.toml` in CWD
+- Precedence chain: CLI flags > env vars > project config > user config > defaults
+- `/config` slash command to view/edit from REPL
+- Zero behavior change for existing env-var users
+
+### Phase 3b — Session management (resume previous conversations)
+
+Infrastructure already exists (`ConversationStore`, `list_sessions()`, JSON files) — needs UX.
+
+- **`/sessions`** command — list previous sessions (date, collection, turn count, last query preview)
+- **`/resume [session-id | index]`** — reload a prior session's history into memory window
+- **`--resume` CLI flag** — start the REPL with a previous session loaded
+- Resume primes the conversational memory window (not full Rich output reconstruction)
+- Optional session naming/aliasing
+
+### Phase 3c — Multi-collection UX polish
+
+Builds on config (persistent default collection) and session resume (sessions remember their collection).
+
+- `/switch` persists the choice to config file
+- Collection metadata in `/switch` output: description, creation date, document count
+- Better `/list` filtering when multiple collections exist
+- Session files tagged with collection context for resume
+- Consider cross-collection queries (query multiple collections, merge results) — may be later scope beyond 3c
+
+## Phase 4 — Textual TUI upgrade
+
+Full UI-layer rewrite for **pinrag-cli** (~2–3× the scope of 3a+3b+3c combined). Depends on 3a–3c being stable so new commands and flows are not built twice.
+
+- Replace `prompt_toolkit` + `Rich` rendering with **Textual** full-screen app
+- Split-pane layout: input area, scrollable conversation history, sidebar for collections/documents
+- Textual has its own event loop, widget system, CSS-like styling — fundamentally different paradigm
+- Risk: Textual apps behave differently in SSH, tmux, limited terminals — consider keeping classic REPL as `--no-tui` fallback
+- Needs own test strategy (Textual `pilot` for snapshot testing)
+- Rich rendering helpers from `output.py` partially reusable; orchestration changes completely
+- Implement after 3b and 3c: those phases add commands/flows that would otherwise need dual implementation
 
 ---
 
