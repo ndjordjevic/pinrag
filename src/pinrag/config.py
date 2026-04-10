@@ -82,6 +82,17 @@ DEFAULT_GITHUB_MAX_FILE_BYTES = DEFAULT_MAX_INDEX_FILE_BYTES
 DEFAULT_GITHUB_DEFAULT_BRANCH = "main"
 DEFAULT_PLAINTEXT_MAX_FILE_BYTES = DEFAULT_MAX_INDEX_FILE_BYTES
 
+# --- Web docs indexing ---
+DEFAULT_WEB_MAX_PAGES = 200
+DEFAULT_WEB_MAX_DEPTH = 5
+DEFAULT_WEB_MAX_PAGE_BYTES = 1_048_576  # 1 MiB
+DEFAULT_WEB_REQUEST_TIMEOUT = 20.0
+DEFAULT_WEB_CONCURRENCY = 4
+DEFAULT_WEB_RATE_LIMIT_PER_HOST = 2.0
+DEFAULT_WEB_USER_AGENT = "pinrag/0.10 (+https://github.com/ndjordjevic/pinrag)"
+DEFAULT_WEB_RESPECT_ROBOTS = True
+DEFAULT_WEB_PREFER_LLMS_TXT = True
+
 
 # --- LLM ---
 def get_llm_provider() -> str:
@@ -506,6 +517,95 @@ def get_github_default_branch() -> str:
     if val and str(val).strip():
         return str(val).strip()
     return DEFAULT_GITHUB_DEFAULT_BRANCH
+
+
+# --- Web docs indexing ---
+def _get_bool_env(name: str, default: bool) -> bool:
+    val = os.environ.get(name)
+    if val is None or not str(val).strip():
+        return default
+    v = str(val).strip().lower()
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    return default
+
+
+def _get_int_env(name: str, default: int, *, min_value: int = 1) -> int:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    try:
+        n = int(val)
+        if n < min_value:
+            return default
+        return n
+    except ValueError:
+        return default
+
+
+def _get_float_env(name: str, default: float, *, min_value: float = 0.0) -> float:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    try:
+        n = float(val)
+        if n <= min_value:
+            return default
+        return n
+    except ValueError:
+        return default
+
+
+def get_web_max_pages() -> int:
+    """Max pages indexed from a single web docs seed (default 200)."""
+    return _get_int_env("PINRAG_WEB_MAX_PAGES", DEFAULT_WEB_MAX_PAGES)
+
+
+def get_web_max_depth() -> int:
+    """Max BFS depth from a seed URL when sitemap/llms.txt unavailable (default 5)."""
+    return _get_int_env("PINRAG_WEB_MAX_DEPTH", DEFAULT_WEB_MAX_DEPTH)
+
+
+def get_web_max_page_bytes() -> int:
+    """Max bytes fetched per page (default 1 MiB)."""
+    return _get_int_env("PINRAG_WEB_MAX_PAGE_BYTES", DEFAULT_WEB_MAX_PAGE_BYTES)
+
+
+def get_web_request_timeout() -> float:
+    """HTTP timeout per request in seconds (default 20)."""
+    return _get_float_env("PINRAG_WEB_REQUEST_TIMEOUT", DEFAULT_WEB_REQUEST_TIMEOUT)
+
+
+def get_web_concurrency() -> int:
+    """Number of concurrent page fetches (default 4)."""
+    return _get_int_env("PINRAG_WEB_CONCURRENCY", DEFAULT_WEB_CONCURRENCY)
+
+
+def get_web_rate_limit_per_host() -> float:
+    """Max requests per second per host (default 2.0)."""
+    return _get_float_env(
+        "PINRAG_WEB_RATE_LIMIT_PER_HOST", DEFAULT_WEB_RATE_LIMIT_PER_HOST
+    )
+
+
+def get_web_user_agent() -> str:
+    """User-Agent string for web docs fetches."""
+    val = os.environ.get("PINRAG_WEB_USER_AGENT")
+    if val and str(val).strip():
+        return str(val).strip()
+    return DEFAULT_WEB_USER_AGENT
+
+
+def get_web_respect_robots() -> bool:
+    """Whether to respect robots.txt (default True). Disable only for whitelisted use."""
+    return _get_bool_env("PINRAG_WEB_RESPECT_ROBOTS", DEFAULT_WEB_RESPECT_ROBOTS)
+
+
+def get_web_prefer_llms_txt() -> bool:
+    """Whether to try ``/llms.txt`` discovery before ``sitemap.xml`` (default True)."""
+    return _get_bool_env("PINRAG_WEB_PREFER_LLMS_TXT", DEFAULT_WEB_PREFER_LLMS_TXT)
 
 
 # --- Plain text indexing ---

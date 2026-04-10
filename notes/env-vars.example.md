@@ -92,6 +92,26 @@ See also the configuration table in the project `README.md`.
 # Max file size in bytes to index (default: 524288 = 512 KB); larger files are skipped
 # PINRAG_PLAINTEXT_MAX_FILE_BYTES=524288
 
+# --- Web docs indexing ---
+# Maximum pages fetched per web indexing run (default: 200)
+# PINRAG_WEB_MAX_PAGES=200
+# Maximum BFS crawl depth from the seed URL (default: 5); llms.txt / sitemap paths ignore this
+# PINRAG_WEB_MAX_DEPTH=5
+# Skip pages whose response body exceeds this size (default: 1048576 = 1 MiB)
+# PINRAG_WEB_MAX_PAGE_BYTES=1048576
+# Per-request HTTP timeout in seconds (default: 20)
+# PINRAG_WEB_REQUEST_TIMEOUT=20
+# Max concurrent fetches per host (default: 4)
+# PINRAG_WEB_CONCURRENCY=4
+# Token-bucket refill rate in requests/sec per host (default: 2.0)
+# PINRAG_WEB_RATE_LIMIT_PER_HOST=2.0
+# Override User-Agent header (default: PinRAGBot/<version> (+https://github.com/ndjordjevic/pinrag))
+# PINRAG_WEB_USER_AGENT=PinRAGBot/0.10.0
+# Honor robots.txt disallow rules when crawling (default: true)
+# PINRAG_WEB_RESPECT_ROBOTS=true
+# Try llms.txt / llms-full.txt before sitemap / BFS (default: true)
+# PINRAG_WEB_PREFER_LLMS_TXT=true
+
 # --- YouTube transcript proxy (work around IP bans) ---
 # Generic HTTP/HTTPS proxy (e.g. Webshare Proxy Server rotating endpoint):
 # PINRAG_YT_PROXY_HTTP_URL=http://user:pass@p.webshare.io:80

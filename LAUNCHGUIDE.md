@@ -1,10 +1,10 @@
 # PinRAG
 
 ## Tagline
-MCP RAG server: index PDFs, GitHub Repos, YouTube, Discord, Plain Text; query with citations.
+MCP RAG server: index PDFs, GitHub Repos, YouTube, Discord, Plain Text, Web Docs; query with citations.
 
 ## Description
-PinRAG is a retrieval-augmented generation (RAG) MCP server built with LangChain and Chroma. Index PDFs, plain text, Discord exports, YouTube transcripts (with optional on-screen vision enrichment), and GitHub repositories, then ask questions in Cursor, VS Code (Copilot), or any MCP-capable client. Answers include citations (pages, timestamps, paths). Install via PyPI (`pipx`, `uv tool`, or `uvx --refresh pinrag`). Configure API keys in your editor’s MCP `env` block. For YouTube vision, see the main README (`pinrag[vision]`, ffmpeg, `PINRAG_YT_VISION_*`).
+PinRAG is a retrieval-augmented generation (RAG) MCP server built with LangChain and Chroma. Index PDFs, plain text, Discord exports, YouTube transcripts (with optional on-screen vision enrichment), GitHub repositories, and web documentation sites, then ask questions in Cursor, VS Code (Copilot), or any MCP-capable client. Answers include citations (pages, timestamps, paths). Install via PyPI (`pipx`, `uv tool`, or `uvx --refresh pinrag`). Configure API keys in your editor’s MCP `env` block. For YouTube vision, see the main README (`pinrag[vision]`, ffmpeg, `PINRAG_YT_VISION_*`).
 
 ## Setup Requirements
 
@@ -46,7 +46,7 @@ Developer Tools
 Coding assistants, documentation Q&A, research, onboarding, technical support, content analysis
 
 ## Features
-- Index PDFs, directories, plain text, Discord exports, YouTube (URL/playlist/ID), GitHub repos
+- Index PDFs, directories, plain text, Discord exports, YouTube (URL/playlist/ID), GitHub repos, web documentation sites
 - Query with source citations and optional metadata filters (tags, doc type, page range, paths)
 - MCP tools: add documents, add URL, query, list, remove
 - MCP resources and `use_pinrag` prompt for guided workflows
@@ -56,12 +56,12 @@ Coding assistants, documentation Q&A, research, onboarding, technical support, c
 - "Index the PDFs in ./docs and summarize the deployment steps."
 - "What does this repo say about authentication?" (after indexing a GitHub URL)
 - Tool: `query_tool` — Ask questions over indexed documents with citations
-- Tool: `add_document_tool` — Index local files, directories, or URLs (PDF, YouTube, GitHub, Discord export, etc.)
+- Tool: `add_document_tool` — Index local files, directories, or URLs (PDF, YouTube, GitHub, Discord export, web documentation sites, etc.)
 - Tool: `list_documents_tool` — See what is indexed
 - Tool: `remove_document_tool` — Remove a document by ID from `list_documents_tool`
 
 ## Tags
-rag, mcp, langchain, chromadb, pdf, github, youtube, discord, embeddings, openai, cursor, vscode, retrieval, citations
+rag, mcp, langchain, chromadb, pdf, github, youtube, discord, web, scraping, embeddings, openai, cursor, vscode, retrieval, citations
 
 ## Documentation URL
 https://github.com/ndjordjevic/pinrag#readme

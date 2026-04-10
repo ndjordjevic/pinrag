@@ -122,7 +122,7 @@ async def query_tool(
     document_type: Annotated[
         str,
         Field(
-            description="Optional type to filter: 'pdf', 'youtube', 'discord', 'github', or 'plaintext'."
+            description="Optional type to filter: 'pdf', 'youtube', 'discord', 'github', 'plaintext', or 'web'."
         ),
     ] = "",
     response_style: Annotated[
@@ -146,8 +146,8 @@ async def query_tool(
 ) -> dict:
     """Query indexed documents and return an answer with citations.
 
-    Searches through all indexed documents (PDF, Discord, etc.) and uses RAG
-    to provide an answer based on retrieved context, with source citations.
+    Searches through all indexed documents (PDF, Discord, GitHub, YouTube, web docs, etc.)
+    and uses RAG to provide an answer based on retrieved context, with source citations.
 
     Args:
         query: Natural language question to ask.
@@ -155,7 +155,7 @@ async def query_tool(
         page_min: Optional start of page range (inclusive). PDF only.
         page_max: Optional end of page range (inclusive). PDF only.
         tag: Optional tag to filter retrieval (from list_documents).
-        document_type: Optional type to filter: "pdf", "youtube", "discord", "github", or "plaintext".
+        document_type: Optional type to filter: "pdf", "youtube", "discord", "github", "plaintext", or "web".
         response_style: Answer style; omit or empty string uses PINRAG_RESPONSE_STYLE.
         ctx: MCP request context (injected by the server).
 
@@ -223,7 +223,7 @@ async def add_document_tool(
     paths: Annotated[
         list[str],
         Field(
-            description='Paths to index: file, directory, YouTube URL, or GitHub URL (e.g. https://github.com/owner/repo). Single path: ["/path/to/file.pdf"] or ["https://github.com/owner/repo"].'
+            description='Paths to index: file, directory, YouTube URL, GitHub URL, or documentation site URL (e.g. https://docs.langchain.com/). Single path: ["/path/to/file.pdf"] or ["https://github.com/owner/repo"].'
         ),
     ],
     tags: Annotated[
@@ -258,11 +258,13 @@ async def add_document_tool(
     ] = "",
     ctx: Context | None = None,
 ) -> dict:
-    r"""Add files, directories, YouTube videos, or GitHub repos to the index.
+    r"""Add files, directories, YouTube videos, GitHub repos, or web docs sites to the index.
 
     Automatically detects format per path and indexes:
     - GitHub (URL, e.g. https://github.com/owner/repo or github.com/owner/repo/tree/branch)
     - YouTube (URL or video ID, e.g. https://youtu.be/xyz)
+    - Web docs (any other http(s) URL, e.g. https://docs.langchain.com/) — discovery
+      via llms.txt → sitemap.xml → scoped BFS, same-host + path-prefix only
     - PDF (.pdf)
     - Discord export (.txt with DiscordChatExporter Guild:/Channel: header)
 
@@ -579,11 +581,11 @@ def use_pinrag(request: str = "") -> str:
         "  Required: query (str). "
         "  Optional: document_id (ref, exact list title, or unique PDF stem, like remove_document_tool), "
         "page_min/page_max (PDF page range), tag (filter by tag), "
-        "document_type ('pdf', 'youtube', 'discord', 'github', 'plaintext'), "
+        "document_type ('pdf', 'youtube', 'discord', 'github', 'plaintext', 'web'), "
         "response_style ('thorough' or 'concise'), "
         "collection (Chroma collection; default from PINRAG_COLLECTION_NAME).\n\n"
         "add_document_tool — index local files, directories, or remote URLs.\n"
-        "  Required: paths (list of str: file paths, dir paths, YouTube URLs/IDs, GitHub URLs). "
+        "  Required: paths (list of str: file paths, dir paths, YouTube URLs/IDs, GitHub URLs, docs site URLs). "
         "  Optional: tags (list, one per path), branch (GitHub only), "
         "include_patterns / exclude_patterns (GitHub only), collection.\n\n"
         "list_documents_tool — list all indexed documents and chunk counts.\n"

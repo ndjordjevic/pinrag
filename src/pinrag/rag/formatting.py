@@ -88,15 +88,15 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
     """Build a list of unique source references from retrieved documents for citations.
 
     Deduplicates by (document_id, page_or_start_or_source). Each item has "document_id",
-    "page" (for PDFs), "start" when present (YouTube timestamp), and optional "title"
-    for YouTube videos when chunk metadata includes a title.
+    "document_type" when known, "page" (for PDFs), "start" when present (YouTube timestamp),
+    "source" for web pages / GitHub blob URLs / plaintext paths, optional "channel" and
+    message range fields for Discord, and optional "title" for YouTube.
 
     Args:
         docs: Retrieved chunk documents.
 
     Returns:
-        List of dicts with document_id, page (0 for YouTube/non-PDF), start when present,
-        and optional title for YouTube.
+        List of dicts suitable for query citations and CLI source tables.
 
     """
     seen: set[tuple[str, int | str]] = set()
@@ -120,6 +120,7 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
                         "document_id": doc_id,
                         "page": 0,
                         "start": start_int,
+                        "document_type": str(meta.get("document_type") or "youtube"),
                     }
                     yt_title = _youtube_display_title(meta)
                     if yt_title:
@@ -129,7 +130,11 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
                 key = (doc_id, 0)
                 if key not in seen:
                     seen.add(key)
-                    item = {"document_id": doc_id, "page": 0}
+                    item = {
+                        "document_id": doc_id,
+                        "page": 0,
+                        "document_type": str(meta.get("document_type") or "youtube"),
+                    }
                     yt_title = _youtube_display_title(meta)
                     if yt_title:
                         item["title"] = yt_title
@@ -139,7 +144,77 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
             key = (doc_id, src) if src else (doc_id, 0)
             if key not in seen:
                 seen.add(key)
-                item = {"document_id": doc_id, "page": 0}
+                item = {
+                    "document_id": doc_id,
+                    "page": 0,
+                    "document_type": "github",
+                }
+                if src:
+                    item["source"] = src
+                yt_title = _youtube_display_title(meta)
+                if yt_title:
+                    item["title"] = yt_title
+                out.append(item)
+        elif meta.get("document_type") == "web":
+            src = str(meta.get("source") or meta.get("source_url") or "")
+            ci = meta.get("chunk_index")
+            try:
+                ci_k = int(ci) if ci is not None else 0
+            except (TypeError, ValueError):
+                ci_k = 0
+            key = (doc_id, src) if src else (doc_id, ci_k)
+            if key not in seen:
+                seen.add(key)
+                item = {"document_id": doc_id, "page": 0, "document_type": "web"}
+                if src:
+                    item["source"] = src
+                yt_title = _youtube_display_title(meta)
+                if yt_title:
+                    item["title"] = yt_title
+                out.append(item)
+        elif meta.get("document_type") == "discord":
+            ms_raw = meta.get("message_start")
+            me_raw = meta.get("message_end")
+            try:
+                ms_i = int(ms_raw) if ms_raw is not None else None
+            except (TypeError, ValueError):
+                ms_i = None
+            try:
+                me_i = int(me_raw) if me_raw is not None else None
+            except (TypeError, ValueError):
+                me_i = None
+            ci_fallback = meta.get("chunk_index")
+            key = (
+                (doc_id, ms_i)
+                if ms_i is not None
+                else (doc_id, int(ci_fallback) if ci_fallback is not None else 0)
+            )
+            if key not in seen:
+                seen.add(key)
+                item = {"document_id": doc_id, "page": 0, "document_type": "discord"}
+                if ms_i is not None:
+                    item["message_start"] = ms_i
+                if me_i is not None:
+                    item["message_end"] = me_i
+                ch = meta.get("channel")
+                if ch:
+                    item["channel"] = str(ch)
+                yt_title = _youtube_display_title(meta)
+                if yt_title:
+                    item["title"] = yt_title
+                out.append(item)
+        elif meta.get("document_type") == "plaintext":
+            src = str(meta.get("source") or "")
+            try:
+                page = int(meta.get("page", 0))
+            except (TypeError, ValueError):
+                page = 0
+            key = (doc_id, src) if src else (doc_id, page)
+            if key not in seen:
+                seen.add(key)
+                item = {"document_id": doc_id, "page": page, "document_type": "plaintext"}
+                if src:
+                    item["source"] = src
                 yt_title = _youtube_display_title(meta)
                 if yt_title:
                     item["title"] = yt_title
@@ -152,7 +227,10 @@ def format_sources(docs: list[Document]) -> list[dict[str, str | int]]:
             key = (doc_id, page)
             if key not in seen:
                 seen.add(key)
-                item = {"document_id": doc_id, "page": page}
+                dtype = meta.get("document_type")
+                if not dtype:
+                    dtype = "pdf" if page > 0 else "unknown"
+                item = {"document_id": doc_id, "page": page, "document_type": str(dtype)}
                 yt_title = _youtube_display_title(meta)
                 if yt_title:
                     item["title"] = yt_title

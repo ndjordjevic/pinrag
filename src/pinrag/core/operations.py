@@ -26,11 +26,13 @@ from pinrag.indexing import (
     GitHubIndexResult,
     IndexResult,
     PlaintextIndexResult,
+    WebIndexResult,
     YouTubeIndexResult,
     index_discord,
     index_github,
     index_pdf,
     index_plaintext,
+    index_web,
     index_youtube,
     index_youtube_playlist,
 )
@@ -173,7 +175,7 @@ def query(
         page_min: Optional start of page range (inclusive). Use with page_max. PDF only.
         page_max: Optional end of page range (inclusive). Single page: page_min=64, page_max=64. PDF only.
         tag: Optional tag to filter retrieval (e.g. from list_documents document_details).
-        document_type: Optional type to filter: "pdf", "youtube", "discord", "github", or "plaintext".
+        document_type: Optional type to filter: "pdf", "youtube", "discord", "github", "plaintext", or "web".
         response_style: Answer style for generation ("thorough" or "concise").
         persist_dir: Chroma persistence directory (default: from PINRAG_PERSIST_DIR or chroma_db).
         collection: Chroma collection name (default: from PINRAG_COLLECTION_NAME or pinrag).
@@ -274,6 +276,19 @@ def query(
             item["start"] = int(s["start"])
         if s.get("title"):
             item["title"] = str(s["title"])
+        if s.get("document_type"):
+            item["document_type"] = str(s["document_type"])
+        src = s.get("source")
+        if src is not None and str(src).strip():
+            item["source"] = str(src)
+        if s.get("channel"):
+            item["channel"] = str(s["channel"])
+        for _msg_key in ("message_start", "message_end"):
+            if _msg_key in s:
+                try:
+                    item[_msg_key] = int(s[_msg_key])
+                except (TypeError, ValueError):
+                    pass
         sources_out.append(item)
     return {"answer": rag_result.answer, "sources": sources_out}
 
@@ -289,11 +304,13 @@ def add_file(
     exclude_patterns: list[str] | None = None,
     verbose_emitter: VerboseSyncEmitter | None = None,
 ) -> dict[str, Any]:
-    """Add a file, directory, YouTube video, or GitHub repo to the index.
+    """Add a file, directory, YouTube video, GitHub repo, or documentation site to the index.
 
-    Automatically detects format: GitHub URL, YouTube URL/video ID, PDF (.pdf), or
-    Discord export (.txt with DiscordChatExporter header). Indexes the item or
-    all supported files in the directory.
+    Automatically detects format: GitHub URL, YouTube URL/video ID, documentation
+    site URL (http/https), PDF (.pdf), or Discord export (.txt with
+    DiscordChatExporter header). Indexes the item or all supported files in the
+    directory. Web docs discovery tries ``llms.txt``, then ``sitemap.xml``, then
+    a scoped BFS crawl under the seed URL's host + path prefix.
 
     Args:
         path: Path to a file/directory, YouTube URL, or GitHub URL (e.g. https://github.com/owner/repo).
@@ -375,6 +392,69 @@ def add_file(
             _emit_verbose(
                 verbose_emitter,
                 f"phase=github_index_error path={path!r} error={str(e)!r}",
+                level="warning",
+            )
+            return {
+                "indexed": [],
+                "failed": [{"path": path, "error": str(e)}],
+                "total_indexed": 0,
+                "total_failed": 1,
+                "persist_directory": str(resolve_persist_dir_path(_persist)),
+                "collection_name": collection,
+            }
+    if fmt == "web":
+        logger.info(
+            "Indexing web docs: %s", path[:80] + "..." if len(path) > 80 else path
+        )
+        try:
+            _emit_verbose(verbose_emitter, f"phase=web_index_start path={path!r}")
+            embedding = get_embedding_model()
+            result_web: WebIndexResult = index_web(
+                path,
+                persist_directory=_persist,
+                collection_name=collection,
+                embedding=embedding,
+                tag=tag_clean,
+            )
+            logger.info(
+                "Web docs indexed: %s (%d pages, %d chunks, discovery=%s)",
+                result_web.document_id,
+                result_web.pages_indexed,
+                result_web.total_chunks,
+                result_web.discovery,
+            )
+            _emit_verbose(
+                verbose_emitter,
+                f"phase=web_index_done document_id={result_web.document_id!r} "
+                f"pages={result_web.pages_indexed} chunks={result_web.total_chunks} "
+                f"discovery={result_web.discovery!r}",
+            )
+            web_item: dict[str, Any] = {
+                "path": path,
+                "format": "web",
+                "site": result_web.host,
+                "root_url": f"https://{result_web.host}{result_web.path_prefix}",
+                "document_id": result_web.document_id,
+                "pages_indexed": result_web.pages_indexed,
+                "pages_failed": result_web.pages_failed,
+                "total_chunks": result_web.total_chunks,
+                "discovery": result_web.discovery,
+            }
+            if result_web.failed_pages:
+                web_item["failed_pages"] = result_web.failed_pages
+            return {
+                "indexed": [web_item],
+                "failed": [],
+                "total_indexed": 1,
+                "total_failed": 0,
+                "persist_directory": str(resolve_persist_dir_path(_persist)),
+                "collection_name": collection,
+            }
+        except Exception as e:
+            logger.warning("Web docs indexing failed: %s - %s", path, e)
+            _emit_verbose(
+                verbose_emitter,
+                f"phase=web_index_error path={path!r} error={str(e)!r}",
                 level="warning",
             )
             return {
@@ -523,7 +603,8 @@ def add_file(
             raise FileNotFoundError(f"Path not found: {path}")
         raise ValueError(
             f"Unsupported format: {path}. "
-            "Supported: GitHub URL, YouTube URL/video ID, YouTube playlist URL, .pdf, .txt (Discord or plain text)."
+            "Supported: GitHub URL, YouTube URL/video ID, YouTube playlist URL, "
+            "documentation site URL (http/https), .pdf, .txt (Discord or plain text)."
         )
 
     base = resolve_user_content_path(path)
@@ -675,8 +756,8 @@ def add_files(
 ) -> dict[str, Any]:
     """Add multiple files, directories, or URLs to the index in one call.
 
-    Automatically detects format per path (PDF, Discord export, YouTube, GitHub). Continues
-    indexing even if some paths fail.
+    Automatically detects format per path (PDF, Discord export, YouTube, GitHub, web docs).
+    Continues indexing even if some paths fail.
 
     Args:
         paths: List of file or directory paths to index.

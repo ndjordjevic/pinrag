@@ -1,6 +1,6 @@
 [project]
 name = "pinrag"
-version = "0.9.27"
+version = "0.10.0"
 description = "A powerful RAG (Retrieval-Augmented Generation) system built with LangChain, designed as an MCP server for Cursor, VS Code, and other AI assistants"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -24,6 +24,11 @@ dependencies = [
     "yt-dlp>=2026.3.17",
     "youtube-transcript-api>=1.2.4",
     "langchain-openrouter>=0.2.1",
+    "httpx>=0.28.0",
+    "beautifulsoup4>=4.13.0",
+    "lxml>=5.3.0",
+    "trafilatura>=2.0.0",
+    "markdownify>=1.0.0",
 ]
 
 [project.urls]

@@ -27,6 +27,12 @@ from pinrag.indexing.youtube_indexer import (
     index_youtube,
     index_youtube_playlist,
 )
+from pinrag.indexing.web_indexer import WebIndexResult, index_web
+from pinrag.indexing.web_loader import (
+    CrawlLimits,
+    WebLoadResult,
+    load_web_docs_as_documents,
+)
 from pinrag.indexing.youtube_loader import (
     YouTubeLoadResult,
     extract_playlist_id,
@@ -36,6 +42,7 @@ from pinrag.indexing.youtube_loader import (
 )
 
 __all__ = [
+    "CrawlLimits",
     "DiscordIndexResult",
     "DiscordLoadResult",
     "PlaintextIndexResult",
@@ -44,6 +51,8 @@ __all__ = [
     "GitHubLoadResult",
     "IndexResult",
     "PdfLoadResult",
+    "WebIndexResult",
+    "WebLoadResult",
     "iter_pdf_page_text",
     "load_pdf_as_documents",
     "YouTubeIndexResult",
@@ -56,11 +65,13 @@ __all__ = [
     "index_github",
     "index_pdf",
     "index_plaintext",
+    "index_web",
     "index_youtube",
     "index_youtube_playlist",
     "load_discord_export_as_documents",
     "load_github_repo_as_documents",
     "load_plaintext_as_documents",
+    "load_web_docs_as_documents",
     "load_youtube_transcript_as_documents",
     "query_index",
 ]

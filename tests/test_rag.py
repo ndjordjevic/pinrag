@@ -75,6 +75,42 @@ def test_format_sources_empty() -> None:
     assert format_sources([]) == []
 
 
+def test_format_sources_web_includes_url() -> None:
+    """format_sources returns source URL and document_type for web chunks."""
+    docs = [
+        Document(
+            page_content="Hello",
+            metadata={
+                "document_id": "site/",
+                "document_type": "web",
+                "source": "https://example.com/a",
+            },
+        ),
+        Document(
+            page_content="Again",
+            metadata={
+                "document_id": "site/",
+                "document_type": "web",
+                "source": "https://example.com/b",
+            },
+        ),
+    ]
+    sources = format_sources(docs)
+    assert len(sources) == 2
+    assert sources[0] == {
+        "document_id": "site/",
+        "page": 0,
+        "document_type": "web",
+        "source": "https://example.com/a",
+    }
+    assert sources[1] == {
+        "document_id": "site/",
+        "page": 0,
+        "document_type": "web",
+        "source": "https://example.com/b",
+    }
+
+
 def test_format_sources_dedup() -> None:
     """format_sources deduplicates by (document_id, page)."""
     docs = [
@@ -84,8 +120,8 @@ def test_format_sources_dedup() -> None:
     ]
     sources = format_sources(docs)
     assert len(sources) == 2
-    assert sources[0] == {"document_id": "f.pdf", "page": 1}
-    assert sources[1] == {"document_id": "f.pdf", "page": 2}
+    assert sources[0] == {"document_id": "f.pdf", "page": 1, "document_type": "pdf"}
+    assert sources[1] == {"document_id": "f.pdf", "page": 2, "document_type": "pdf"}
 
 
 def test_apply_post_retrieval_doc_limit() -> None:

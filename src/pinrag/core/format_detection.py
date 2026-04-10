@@ -106,6 +106,29 @@ def categorize_failures(failed: list[dict[str, str]]) -> dict[str, int]:
     return summary
 
 
+def is_web_docs_url(s: str) -> bool:
+    """Return True for any http(s) URL that parses cleanly with a host.
+
+    Callers should use this only as a fallback after ``is_github_url`` and YouTube
+    detection — ``detect_source_format`` enforces that precedence. Always rejects
+    obvious non-URLs (null bytes, control chars, missing scheme/host).
+    """
+    raw = (s or "").strip()
+    if not raw or "\x00" in raw or "\n" in raw or "\r" in raw:
+        return False
+    if "://" not in raw:
+        return False
+    try:
+        p = urlparse(raw)
+    except ValueError:
+        return False
+    if p.scheme not in ("http", "https"):
+        return False
+    if not p.netloc:
+        return False
+    return True
+
+
 def detect_source_format(
     path_or_url: str,
 ) -> (
@@ -116,15 +139,18 @@ def detect_source_format(
         "discord",
         "plaintext",
         "github",
+        "web",
         "directory",
     ]
     | None
 ):
-    """Detect supported format: GitHub URL, YouTube playlist, YouTube video, PDF, or DiscordChatExporter TXT.
+    """Detect supported source format from a path or URL.
 
-    Returns "github", "youtube_playlist", "youtube", "pdf", "discord", or None if unsupported.
-    A watch URL with both v= and list= (e.g. shared link to one video in a playlist) is treated
-    as a single video; only dedicated playlist URLs (youtube.com/playlist?list=...) index the full playlist.
+    Returns one of ``"github"``, ``"youtube_playlist"``, ``"youtube"``, ``"pdf"``,
+    ``"discord"``, ``"plaintext"``, ``"web"``, ``"directory"``, or ``None`` if
+    unsupported. A watch URL with both ``v=`` and ``list=`` is treated as a single
+    video; only dedicated playlist URLs index the full playlist. Any http(s) URL
+    that isn't a GitHub repo or YouTube link falls through to ``"web"``.
     """
     s = (path_or_url or "").strip()
     if not s:
@@ -139,6 +165,8 @@ def detect_source_format(
         return "youtube_playlist"
     if has_video:
         return "youtube"
+    if is_web_docs_url(s):
+        return "web"
     base = resolve_user_content_path(s)
     if base.exists():
         if base.is_dir():

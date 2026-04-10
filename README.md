@@ -15,9 +15,9 @@ Under the hood it is **Retrieval-Augmented Generation** built with **LangChain**
 
 ## Features
 
-- **Multi-format indexing** — PDF (.pdf), local files or directories, plain text (.txt), Discord export (.txt), YouTube (video or playlist URL, or video ID), GitHub repo (URL)
+- **Multi-format indexing** — PDF (.pdf), local files or directories, plain text (.txt), Discord export (.txt), YouTube (video or playlist URL, or video ID), GitHub repo (URL), web documentation sites (URL)
 - **Optional YouTube vision** — Off by default. When enabled, runs a vision model (OpenAI, Anthropic, or OpenRouter native video) and merges structured on-screen context with the transcript so RAG chunks carry searchable code names, labels, and diagrams—not speech alone. OpenRouter mode avoids local ffmpeg/video download; openai/anthropic use scene keyframes and require `pinrag[vision]` + **ffmpeg** (see [YouTube vision enrichment](#youtube-vision-enrichment-optional))
-- **RAG with citations** — Answers cite source context: PDF page, YouTube timestamp, document name for plain text and Discord, chunk index for GitHub repos
+- **RAG with citations** — Answers cite source context: PDF page, YouTube timestamp, document name for plain text and Discord, chunk index for GitHub repos, source URL for web documentation
 - **Document tags** — Tag documents at index time (e.g. `AMIGA`, `PI_PICO`) for filtered search
 - **Metadata filtering** — `query_tool` supports `document_id`, `tag`, `document_type`, PDF `page_min`/`page_max`, and `response_style` (thorough or concise)
 - **MCP tools** — `add_document_tool`, `query_tool`, `list_documents_tool`, `remove_document_tool`, `set_document_tag_tool`, `list_collections_tool`; optional `collection` on tools overrides `PINRAG_COLLECTION_NAME` for that call
@@ -87,13 +87,13 @@ Put API keys and any PinRAG settings in the MCP entry’s **`env` block**. The s
 
 | Action | Tool |
 |--------|------|
-| Index files, directories, or URLs | `add_document_tool` — required **`paths`**: list of local paths (PDFs, plain or DiscordChatExporter `.txt`, directories) or URLs (YouTube videos, playlist URLs, GitHub repos; bare YouTube video IDs allowed). Optional **`tags`** (one per path). For GitHub URLs only: **`branch`**, **`include_patterns`**, **`exclude_patterns`**. |
+| Index files, directories, or URLs | `add_document_tool` — required **`paths`**: list of local paths (PDFs, plain or DiscordChatExporter `.txt`, directories) or URLs (YouTube videos, playlist URLs, GitHub repos, web documentation sites; bare YouTube video IDs allowed). Optional **`tags`** (one per path). For GitHub URLs only: **`branch`**, **`include_patterns`**, **`exclude_patterns`**. |
 | List indexed documents | `list_documents_tool` — returns **`documents`** (IDs), **`total_chunks`**, and optional **`tag`** filter. **`document_details`** may include `document_type`, tags, page / message / segment counts, titles, aggregated **`bytes`**, and **`upload_timestamp`** when present in metadata. |
 | Query with filters | `query_tool` — required **`query`**. Optional **`document_id`**, **`tag`**, **`document_type`**, **`page_min`** / **`page_max`** (PDF ranges), **`response_style`** (`thorough` or `concise`; leave empty to use **`PINRAG_RESPONSE_STYLE`**). |
 | Remove a document | `remove_document_tool` — required **`document_id`** (exact value from **`list_documents_tool`**). |
 | View resources (read-only) | In the MCP panel, open **Resources** and choose **`pinrag://documents`** (indexed docs) or **`pinrag://server-config`** (effective config, including **`PINRAG_VERSION`**). |
 
-Ask in chat: *"Add /path/to/amiga-book.pdf with tag AMIGA"*, *"Index https://youtu.be/xyz and ask what it says"*, or *"Index https://github.com/owner/repo and ask about the codebase"*. The AI will invoke the tools for you. Citations show page numbers for PDFs, timestamps (e.g. `t. 1:23`) for YouTube, document names for plain text and Discord exports, and chunk index labels for GitHub.
+Ask in chat: *"Add /path/to/amiga-book.pdf with tag AMIGA"*, *"Index https://youtu.be/xyz and ask what it says"*, *"Index https://github.com/owner/repo and ask about the codebase"*, or *"Index https://docs.langchain.com/ and summarize its memory APIs"*. The AI will invoke the tools for you. Citations show page numbers for PDFs, timestamps (e.g. `t. 1:23`) for YouTube, document names for plain text and Discord exports, chunk index labels for GitHub, and source URLs for web documentation.
 
 ### GitHub indexing
 
@@ -102,6 +102,18 @@ Index a repo with **`add_document_tool`** and a URL in **`paths`**, e.g. `https:
 **GitHub-only options:** **`branch`**, **`include_patterns`** / **`exclude_patterns`** — defaults already favor common text and source files and skip bulky artifacts; use patterns when you need files outside that set. Files over **`PINRAG_GITHUB_MAX_FILE_BYTES`** (default 512 KiB) are skipped.
 
 **Auth:** Set **`GITHUB_TOKEN`** in MCP **`env`** (or the shell) for **private** repos or fewer rate-limit hits on big indexes; small public runs often work without it. Use a classic or fine-grained PAT with repo read access; there is no OAuth in PinRAG.
+
+### Web documentation indexing
+
+Point **`add_document_tool`** at any documentation site URL, e.g. `https://docs.langchain.com/`, `https://docs.crewai.com/`, or `https://picocomputer.github.io/`. PinRAG discovers pages via (in order) **`llms.txt`** / **`llms-full.txt`** (Mintlify-style), **`sitemap.xml`** (including `robots.txt` `Sitemap:` hints and nested sitemap indexes), then a scoped BFS crawl from the seed URL.
+
+**Scope:** exact host match (no subdomains) plus path prefix derived from the seed — e.g. `https://docs.example.com/guide/` only indexes pages under `/guide/`. Use the site root URL to capture the full docs tree.
+
+**Extraction:** `text/markdown` responses (from llms.txt fast paths) pass through; HTML runs through `trafilatura` with a BeautifulSoup + `markdownify` fallback that scopes to `<main>` / `<article>` / `[role=main]`.
+
+**Limits & politeness:** controlled by **`PINRAG_WEB_MAX_PAGES`** (default 200), **`PINRAG_WEB_MAX_DEPTH`** (5), **`PINRAG_WEB_MAX_PAGE_BYTES`** (1 MiB), **`PINRAG_WEB_CONCURRENCY`** (4), **`PINRAG_WEB_RATE_LIMIT_PER_HOST`** (2.0/sec), and **`PINRAG_WEB_RESPECT_ROBOTS`** (`true`). Some sites (e.g. Cloudflare-protected pages) may return 403 to pure-Python clients; that's a known limitation.
+
+**Citations:** web chunks carry a `source_url` metadata field; answers cite per-page URLs, and the `document_id` is `<host><path_prefix>` so `remove_document_tool` / `set_document_tag_tool` operate on the whole site at once.
 
 ### YouTube indexing and IP blocking
 
@@ -192,6 +204,16 @@ Environment variables:
 | `PINRAG_GITHUB_DEFAULT_BRANCH` | `main` | Default branch when not specified in the GitHub URL. |
 | **Plain text indexing** | | |
 | `PINRAG_PLAINTEXT_MAX_FILE_BYTES` | `524288` (512 KB) | Skip plain .txt files larger than this when indexing. |
+| **Web docs indexing** | | |
+| `PINRAG_WEB_MAX_PAGES` | `200` | Maximum pages fetched per web indexing run. |
+| `PINRAG_WEB_MAX_DEPTH` | `5` | Maximum BFS crawl depth from the seed URL (ignored for llms.txt / sitemap fast paths). |
+| `PINRAG_WEB_MAX_PAGE_BYTES` | `1048576` (1 MiB) | Skip pages whose response body exceeds this size. |
+| `PINRAG_WEB_REQUEST_TIMEOUT` | `20` | Per-request HTTP timeout in seconds (connect + read). |
+| `PINRAG_WEB_CONCURRENCY` | `4` | Maximum concurrent fetches per host. |
+| `PINRAG_WEB_RATE_LIMIT_PER_HOST` | `2.0` | Token-bucket refill rate (requests / second) per host. |
+| `PINRAG_WEB_USER_AGENT` | `PinRAGBot/<version> (+https://github.com/ndjordjevic/pinrag)` | HTTP `User-Agent` header for web indexing. Some sites block generic bots; override if needed. |
+| `PINRAG_WEB_RESPECT_ROBOTS` | `true` | `true` / `false` — honor `robots.txt` disallow rules when crawling. |
+| `PINRAG_WEB_PREFER_LLMS_TXT` | `true` | Try `llms.txt` / `llms-full.txt` before sitemap / BFS. Disable to force sitemap or crawl discovery. |
 | **YouTube transcript proxy** | | |
 | `PINRAG_YT_PROXY_HTTP_URL` | *(none)* | HTTP proxy URL for transcript fetches (e.g. `http://user:pass@proxy:80`). Use when YouTube blocks your IP. |
 | `PINRAG_YT_PROXY_HTTPS_URL` | *(none)* | HTTPS proxy URL for transcript fetches. Same as HTTP when using a generic proxy. |
@@ -248,16 +270,16 @@ Natural-language question; optional filters narrow retrieval (`""` / omit when u
 | `document_id` | Limit to this document — exact ref from `list_documents_tool`, list title, or unique PDF filename stem |
 | `page_min`, `page_max` | Inclusive PDF page range (must pass both; one page: same value twice) |
 | `tag` | Only chunks with this tag |
-| `document_type` | `pdf`, `youtube`, `discord`, `github`, or `plaintext` |
+| `document_type` | `pdf`, `youtube`, `discord`, `github`, `plaintext`, or `web` |
 | `response_style` | `thorough` or `concise`. Empty (the schema default) or any other string → resolved via **`PINRAG_RESPONSE_STYLE`** (see `server.py`: only those two literals override env). |
 
-Filters can be combined. The **`sources`** list uses **`page`** for PDFs and **`start`** (seconds) for YouTube; answers may show **t. M:SS** labels derived from **`start`**. GitHub citations use chunk-index-style **p. N** labels in the answer text.
+Filters can be combined. The **`sources`** list uses **`page`** for PDFs and **`start`** (seconds) for YouTube; answers may show **t. M:SS** labels derived from **`start`**. GitHub citations use chunk-index-style **p. N** labels in the answer text. Web docs sources carry a per-page **`source_url`**.
 
 Example: *"What is OpenOCD? In the Pico doc, pages 16–17 only"* → `query_tool(query="What is OpenOCD?", document_id="RP-008276-DS-1-getting-started-with-pico.pdf", page_min=16, page_max=17)`.
 
 ### `add_document_tool`
 
-Index locals (PDF, plain or Discord `.txt`, directories), YouTube (video URL, playlist URL, or bare id), or GitHub URLs (scheme optional). **`paths`** batches work items; one failed path does not roll back others. Persists to **`PINRAG_PERSIST_DIR`** / **`PINRAG_COLLECTION_NAME`** only (no MCP parameters for those).
+Index locals (PDF, plain or Discord `.txt`, directories), YouTube (video URL, playlist URL, or bare id), GitHub URLs (scheme optional), or web documentation sites (any http(s) URL). **`paths`** batches work items; one failed path does not roll back others. Persists to **`PINRAG_PERSIST_DIR`** / **`PINRAG_COLLECTION_NAME`** only (no MCP parameters for those).
 
 | Parameter | Description |
 |-----------|-------------|

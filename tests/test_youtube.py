@@ -310,8 +310,18 @@ def test_format_sources_includes_start_for_youtube() -> None:
     ]
     sources = format_sources(docs)
     assert len(sources) == 2
-    assert sources[0] == {"document_id": "vid1", "page": 0, "start": 83}
-    assert sources[1] == {"document_id": "vid1", "page": 0, "start": 120}
+    assert sources[0] == {
+        "document_id": "vid1",
+        "page": 0,
+        "start": 83,
+        "document_type": "youtube",
+    }
+    assert sources[1] == {
+        "document_id": "vid1",
+        "page": 0,
+        "start": 120,
+        "document_type": "youtube",
+    }
 
 
 def test_format_sources_includes_title_for_youtube_when_in_metadata() -> None:
@@ -341,12 +351,14 @@ def test_format_sources_includes_title_for_youtube_when_in_metadata() -> None:
         "document_id": "vid1",
         "page": 0,
         "start": 10,
+        "document_type": "youtube",
         "title": "Learn Rust",
     }
     assert sources[1] == {
         "document_id": "vid2",
         "page": 0,
         "start": 20,
+        "document_type": "youtube",
         "title": "Only title key",
     }
 
@@ -358,8 +370,8 @@ def test_format_sources_page_for_pdf() -> None:
         Document(page_content="Page 2", metadata={"document_id": "doc.pdf", "page": 2}),
     ]
     sources = format_sources(docs)
-    assert sources[0] == {"document_id": "doc.pdf", "page": 1}
-    assert sources[1] == {"document_id": "doc.pdf", "page": 2}
+    assert sources[0] == {"document_id": "doc.pdf", "page": 1, "document_type": "pdf"}
+    assert sources[1] == {"document_id": "doc.pdf", "page": 2, "document_type": "pdf"}
 
 
 def test_format_docs_citation_label_timestamp() -> None:
