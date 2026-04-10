@@ -86,3 +86,6 @@ dmypy.json
 # MCP Registry CLI (downloaded for local publish; not vendored)
 mcp-publisher
 .mcpregistry_*
+
+# Claude Code local settings (machine-specific; shared settings go in .claude/settings.json)
+.claude/settings.local.json
